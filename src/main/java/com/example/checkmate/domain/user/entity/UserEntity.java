@@ -25,7 +25,7 @@ public class UserEntity extends BaseTime {
     @Column(nullable = false, length = 30)
     private String name;
 
-    @Column(nullable = false , length = 10)
+    @Column(nullable = false , length = 30)
     private String nickname;
 
     // 권한
