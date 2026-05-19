@@ -1,5 +1,6 @@
 package com.example.checkmate.domain.room.service;
 
+import com.example.checkmate.domain.point.service.PointService;
 import com.example.checkmate.domain.room.dto.JoinRoomRequest;
 import com.example.checkmate.domain.room.dto.RoomCreateRequest;
 import com.example.checkmate.domain.room.dto.RoomDetailResponse;
@@ -8,6 +9,7 @@ import com.example.checkmate.domain.room.dto.RoomMemberResponse;
 import com.example.checkmate.domain.room.dto.RoomSummaryResponse;
 import com.example.checkmate.domain.room.entity.Room;
 import com.example.checkmate.domain.room.entity.RoomMember;
+import com.example.checkmate.domain.room.entity.RoomMemberStatus;
 import com.example.checkmate.domain.room.entity.RoomStatus;
 import com.example.checkmate.domain.room.repository.RoomMemberRepository;
 import com.example.checkmate.domain.room.repository.RoomRepository;
@@ -29,6 +31,7 @@ public class RoomService {
     private final RoomRepository roomRepository;
     private final RoomMemberRepository roomMemberRepository;
     private final UserRepository userRepository;
+    private final PointService pointService;
 
     @Transactional
     public RoomDetailResponse createRoom(String email, RoomCreateRequest request) {
@@ -167,6 +170,35 @@ public class RoomService {
                         m.getJoinedAt()
                 ))
                 .toList();
+    }
+
+    @Transactional
+    public RoomDetailResponse stakeRoom(String email, Long roomId) {
+        Room room = roomRepository.findByIdForUpdate(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."));
+
+        UserEntity user = findUserByEmail(email);
+        RoomMember member = roomMemberRepository.findByRoomAndUser(room, user)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "방 멤버가 아닙니다."));
+
+        if (room.getStatus() != RoomStatus.RECRUITING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "모집 중인 방이 아닙니다.");
+        }
+        if (member.getStatus() != RoomMemberStatus.JOINED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 예치금을 납부한 상태입니다.");
+        }
+
+        pointService.deductForRoomStake(user, room.getStakePoint(), room.getId());
+        member.stake(room.getStakePoint());
+        room.addPotPoint(room.getStakePoint());
+
+        long totalCount = roomMemberRepository.countByRoom(room);
+        long stakedCount = roomMemberRepository.countByRoomAndStatus(room, RoomMemberStatus.STAKED);
+        if (totalCount == room.getMaxMembers() && stakedCount == room.getMaxMembers()) {
+            room.markReady();
+        }
+
+        return toDetailResponse(room, totalCount, member.getRole().name());
     }
 
     private String generateInviteCode() {

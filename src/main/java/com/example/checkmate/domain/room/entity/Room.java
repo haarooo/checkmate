@@ -89,4 +89,12 @@ public class Room extends BaseTime {
         room.missionEndDate = null;
         return room;
     }
+
+    public void addPotPoint(long amount) {
+        this.potPoint += amount;
+    }
+
+    public void markReady() {
+        this.status = RoomStatus.READY;
+    }
 }

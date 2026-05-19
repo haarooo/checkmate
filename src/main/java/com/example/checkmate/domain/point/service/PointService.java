@@ -76,6 +76,18 @@ public class PointService {
         return new PointWalletResponse(wallet.getBalance());
     }
 
+    @Transactional
+    public void deductForRoomStake(UserEntity user, long stakePoint, Long roomId) {
+        PointWallet wallet = findWalletByUser(user);
+        if (wallet.getBalance() < stakePoint) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "포인트 잔액이 부족합니다.");
+        }
+        wallet.subtractBalance(stakePoint);
+        PointLedger ledger = PointLedger.createWithRoom(
+                user, roomId, -stakePoint, wallet.getBalance(), LedgerType.ROOM_STAKE, "방 예치금");
+        pointLedgerRepository.save(ledger);
+    }
+
     private UserEntity findUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(

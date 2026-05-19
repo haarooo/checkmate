@@ -16,6 +16,7 @@
 - `GET /api/rooms/invite/{inviteLinkToken}` 초대 링크 미리보기 (비로그인 허용, inviteCode 미포함)
 - `POST /api/rooms/{roomId}/join` 방 참여 (inviteCode body 검증, 불일치 400, 중복/만원/모집중아님 409)
 - `GET /api/rooms/{roomId}/members` 방 멤버 목록 조회 (비멤버 403)
+- `POST /api/rooms/{roomId}/stake` 예치금 납부 (잔액부족 400, 비멤버 403, 상태충돌 409, 전원 STAKED 시 READY 자동 전환)
 
 주의:
 - 위 기능을 처음부터 다시 만들지 않는다.
@@ -47,8 +48,19 @@
 - `RoomSummaryResponse`, `RoomDetailResponse`에는 둘 다 포함 (멤버용)
 
 ## RoomMemberStatus 값 (전체)
-`JOINED, STAKED, SUCCESS, FAILED, SETTLED` — 현재 사용값: `JOINED`
+`JOINED, STAKED, SUCCESS, FAILED, SETTLED` — 현재 사용값: `JOINED`, `STAKED`
+
+## 5단계 stake 테스트 완료 내용
+- 정상 stake 성공
+- PointWallet balance 차감 확인
+- PointLedger ROOM_STAKE 음수 이력 + roomId 확인
+- RoomMember status STAKED 전환 확인
+- Room potPoint 증가 확인
+- 전원 예치 완료 시 Room status READY 자동 전환 확인
+
+## 다음 단계
+- 6단계: `POST /api/rooms/{roomId}/start` (OWNER만, READY 상태만, IN_PROGRESS 전환)
 
 ## 문서 상태
-research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`
+research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`

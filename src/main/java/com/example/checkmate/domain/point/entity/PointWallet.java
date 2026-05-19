@@ -37,4 +37,8 @@ public class PointWallet extends BaseTime {
     public void addBalance(long amount) {
         this.balance += amount;
     }
+
+    public void subtractBalance(long amount) {
+        this.balance -= amount;
+    }
 }

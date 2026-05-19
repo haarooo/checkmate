@@ -69,4 +69,10 @@ public class RoomMember extends BaseTime {
         member.stakedAt = null;
         return member;
     }
+
+    public void stake(long stakedPoint) {
+        this.status = RoomMemberStatus.STAKED;
+        this.stakedPoint = stakedPoint;
+        this.stakedAt = LocalDateTime.now();
+    }
 }

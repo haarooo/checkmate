@@ -60,4 +60,22 @@ public class PointLedger {
         ledger.description = description;
         return ledger;
     }
+
+    public static PointLedger createWithRoom(
+            UserEntity user,
+            Long roomId,
+            long amount,
+            long balanceAfter,
+            LedgerType type,
+            String description
+    ) {
+        PointLedger ledger = new PointLedger();
+        ledger.user = user;
+        ledger.roomId = roomId;
+        ledger.amount = amount;
+        ledger.balanceAfter = balanceAfter;
+        ledger.type = type;
+        ledger.description = description;
+        return ledger;
+    }
 }
