@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface RoomRepository extends JpaRepository<Room, Long> {
     boolean existsByInviteCode(String inviteCode);
     Optional<Room> findByInviteCode(String inviteCode);
+    boolean existsByInviteLinkToken(String inviteLinkToken);
+    Optional<Room> findByInviteLinkToken(String inviteLinkToken);
 }

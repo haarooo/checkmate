@@ -65,6 +65,7 @@ public class Room extends BaseTime {
             String title,
             String description,
             String inviteCode,
+            String inviteLinkToken,
             int durationDays,
             LocalTime deadlineTime,
             int targetRate,
@@ -76,6 +77,7 @@ public class Room extends BaseTime {
         room.title = title;
         room.description = description;
         room.inviteCode = inviteCode;
+        room.inviteLinkToken = inviteLinkToken;
         room.status = RoomStatus.RECRUITING;
         room.durationDays = durationDays;
         room.deadlineTime = deadlineTime;

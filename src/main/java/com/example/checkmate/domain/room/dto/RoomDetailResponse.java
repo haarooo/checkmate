@@ -14,6 +14,7 @@ public class RoomDetailResponse {
     private String description;
     private String status;
     private String inviteCode;
+    private String inviteLinkToken;
     private int durationDays;
     private LocalTime deadlineTime;
     private int targetRate;

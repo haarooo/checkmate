@@ -1,5 +1,6 @@
 package com.example.checkmate.domain.room.controller;
 
+import com.example.checkmate.domain.room.dto.JoinRoomRequest;
 import com.example.checkmate.domain.room.dto.RoomCreateRequest;
 import com.example.checkmate.domain.room.dto.RoomDetailResponse;
 import com.example.checkmate.domain.room.dto.RoomInviteResponse;
@@ -42,18 +43,19 @@ public class RoomController {
         return ResponseEntity.ok(roomService.getRoomDetail(authentication.getName(), roomId));
     }
 
-    @GetMapping("/invite/{inviteCode}")
-    public ResponseEntity<RoomInviteResponse> getRoomByInviteCode(
-            @PathVariable String inviteCode) {
-        return ResponseEntity.ok(roomService.getRoomByInviteCode(inviteCode));
+    @GetMapping("/invite/{inviteLinkToken}")
+    public ResponseEntity<RoomInviteResponse> getRoomByInviteLinkToken(
+            @PathVariable String inviteLinkToken) {
+        return ResponseEntity.ok(roomService.getRoomByInviteLinkToken(inviteLinkToken));
     }
 
     @PostMapping("/{roomId}/join")
     public ResponseEntity<RoomDetailResponse> joinRoom(
             Authentication authentication,
-            @PathVariable Long roomId) {
+            @PathVariable Long roomId,
+            @Valid @RequestBody JoinRoomRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(roomService.joinRoom(authentication.getName(), roomId));
+                .body(roomService.joinRoom(authentication.getName(), roomId, request));
     }
 
     @GetMapping("/{roomId}/members")

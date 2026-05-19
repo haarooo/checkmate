@@ -12,6 +12,7 @@ public class RoomSummaryResponse {
     private int maxMembers;
     private long stakePoint;
     private String inviteCode;
+    private String inviteLinkToken;
     private long currentMemberCount;
     private String myRole;
 }

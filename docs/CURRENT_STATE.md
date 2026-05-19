@@ -10,9 +10,12 @@
 - `GET /api/points/me` 잔액 조회
 - `GET /api/points/me/ledgers` 이력 조회 (최신순)
 - `POST /api/points/test/charge` 테스트 충전
-- `POST /api/rooms` 방 생성 (RECRUITING, inviteCode 자동생성, 생성자 OWNER 등록)
+- `POST /api/rooms` 방 생성 (RECRUITING, inviteCode 6자 + inviteLinkToken 32자 자동 생성, 생성자 OWNER 등록)
 - `GET /api/rooms` 내가 속한 방 목록 조회
 - `GET /api/rooms/{roomId}` 방 상세 조회 (비멤버 403, 없는 방 404)
+- `GET /api/rooms/invite/{inviteLinkToken}` 초대 링크 미리보기 (비로그인 허용, inviteCode 미포함)
+- `POST /api/rooms/{roomId}/join` 방 참여 (inviteCode body 검증, 불일치 400, 중복/만원/모집중아님 409)
+- `GET /api/rooms/{roomId}/members` 방 멤버 목록 조회 (비멤버 403)
 
 주의:
 - 위 기능을 처음부터 다시 만들지 않는다.
@@ -29,8 +32,19 @@
   - repository: `RoomRepository`, `RoomMemberRepository`
   - service: `RoomService`
   - controller: `RoomController`
-  - dto (3단계 완료): `RoomCreateRequest`, `RoomSummaryResponse`, `RoomDetailResponse`
-  - dto (4단계 부분 생성): `RoomInviteResponse`, `RoomMemberResponse`, `JoinRoomRequest`
+  - dto: `RoomCreateRequest`, `RoomSummaryResponse`, `RoomDetailResponse`, `RoomInviteResponse`, `RoomMemberResponse`, `JoinRoomRequest`
+
+## inviteLinkToken / inviteCode 설계 확정
+
+| 항목 | 값 | 역할 |
+|------|-----|------|
+| `inviteCode` | 6자 (UUID 앞 6자리) | 방 참여 검증용. POST /join body로 전달. 불일치 시 400 |
+| `inviteLinkToken` | 32자 (UUID 하이픈 제거) | 초대 링크 URL 토큰. 비로그인 미리보기 전용 |
+
+- 프론트 링크 형식: `{frontendDomain}/invite/{inviteLinkToken}`
+- DB에는 token만 저장 (전체 URL 저장 안 함)
+- `RoomInviteResponse`에 inviteCode·inviteLinkToken 모두 포함 금지
+- `RoomSummaryResponse`, `RoomDetailResponse`에는 둘 다 포함 (멤버용)
 
 ## RoomMemberStatus 값 (전체)
 `JOINED, STAKED, SUCCESS, FAILED, SETTLED` — 현재 사용값: `JOINED`
@@ -38,64 +52,3 @@
 ## 문서 상태
 research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`
 plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`
-
----
-
-## ⚠️ 현재 단계: 4단계 inviteLinkToken/inviteCode 분리 리팩토링 진행 중
-
-**현재 코드는 리팩토링 중간 상태이므로 build가 실패할 수 있다.
-다음 세션에서 남은 작업을 완료한 후 build를 실행한다.**
-
-### 배경
-기본 join 엔드포인트 구조는 존재하나, **초대 링크 토큰(inviteLinkToken)과 초대 코드(inviteCode)를 분리**하는 설계 변경이 승인되어 리팩토링 중이다.
-
-| 항목 | 역할 |
-|------|------|
-| `inviteLinkToken` | URL 공유용 긴 토큰 (UUID 32자). 비로그인 미리보기 전용. 민감 정보 없음 |
-| `inviteCode` | 참여 검증용 짧은 코드 (6자). 로그인 + body에 포함해야 join 가능. 미리보기 응답에 절대 포함 금지 |
-
-### 이번 세션에서 완료된 변경
-- `JoinRoomRequest.java` 신규 생성 (`@NotBlank inviteCode` 1개 필드)
-- `Room.java` 에 `inviteLinkToken` 필드 추가 (`@Column(nullable = false, unique = true)`)
-
-### 남은 작업 (다음 세션에서 이어서 구현)
-
-1. **`Room.java`** — `create()` 파라미터에 `String inviteLinkToken` 추가 및 factory 내 대입
-
-2. **`RoomRepository.java`** — 아래 메서드 추가
-   ```java
-   boolean existsByInviteLinkToken(String inviteLinkToken);
-   Optional<Room> findByInviteLinkToken(String inviteLinkToken);
-   ```
-
-3. **`RoomService.java`** — 4곳 수정
-   - `createRoom()`: inviteCode(6자) + inviteLinkToken(32자) 모두 생성, `Room.create()` 호출에 전달
-   - `generateInviteLinkToken()` private 메서드 추가 (중복 체크 포함)
-   - `getRoomByInviteCode()` → `getRoomByInviteLinkToken(String)` 이름·내부 조회 변경
-   - `joinRoom()`: `JoinRoomRequest request` 파라미터 추가, inviteCode 불일치 → 400
-
-4. **`RoomController.java`** — 2곳 수정
-   - `GET /api/rooms/invite/{inviteLinkToken}`: path variable 이름 변경, service 메서드명 변경
-   - `POST /api/rooms/{roomId}/join`: `@Valid @RequestBody JoinRoomRequest request` 추가
-
-5. **`RoomSummaryResponse.java` / `RoomDetailResponse.java`** — `inviteLinkToken` 필드 추가 (inviteCode 유지)
-
-6. **SecurityConfig** — `GET /api/rooms/invite/**` permitAll 1줄 추가 (사용자가 직접 처리 예정)
-
-### 유저 지정 필수 조건
-- SecurityConfig 절대 수정 금지 (사용자 직접 처리)
-- RoomInviteResponse에 inviteCode 포함 금지
-- joinRoom: request.getInviteCode() vs room.getInviteCode() 불일치 → 400
-- 방 참여 이후 inviteCode 재요구 금지
-
----
-
-## 다음 세션 시작 프롬프트
-```
-CLAUDE.md와 docs/CURRENT_STATE.md를 읽어.
-4단계 inviteLinkToken/inviteCode 분리 리팩토링을 이어서 구현한다.
-CURRENT_STATE.md의 "남은 작업" 목록 순서대로 진행해.
-research/plan은 이미 있으므로 새로 작성하지 않아도 된다.
-SecurityConfig는 절대 수정하지 마. RoomInviteResponse에 inviteCode 포함 금지.
-먼저 현재 코드 상태를 확인한 뒤, 남은 작업 목록과 일치하면 구현을 진행해.
-```

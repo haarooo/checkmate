@@ -1,5 +1,6 @@
 package com.example.checkmate.domain.room.service;
 
+import com.example.checkmate.domain.room.dto.JoinRoomRequest;
 import com.example.checkmate.domain.room.dto.RoomCreateRequest;
 import com.example.checkmate.domain.room.dto.RoomDetailResponse;
 import com.example.checkmate.domain.room.dto.RoomInviteResponse;
@@ -33,12 +34,14 @@ public class RoomService {
     public RoomDetailResponse createRoom(String email, RoomCreateRequest request) {
         UserEntity user = findUserByEmail(email);
         String inviteCode = generateInviteCode();
+        String inviteLinkToken = generateInviteLinkToken();
 
         Room room = Room.create(
                 user,
                 request.getTitle(),
                 request.getDescription(),
                 inviteCode,
+                inviteLinkToken,
                 request.getDurationDays(),
                 request.getDeadlineTime(),
                 request.getTargetRate(),
@@ -64,6 +67,7 @@ public class RoomService {
                         member.getRoom().getMaxMembers(),
                         member.getRoom().getStakePoint(),
                         member.getRoom().getInviteCode(),
+                        member.getRoom().getInviteLinkToken(),
                         roomMemberRepository.countByRoom(member.getRoom()),
                         member.getRole().name()
                 ))
@@ -89,6 +93,7 @@ public class RoomService {
                 room.getDescription(),
                 room.getStatus().name(),
                 room.getInviteCode(),
+                room.getInviteLinkToken(),
                 room.getDurationDays(),
                 room.getDeadlineTime(),
                 room.getTargetRate(),
@@ -103,9 +108,9 @@ public class RoomService {
     }
 
     @Transactional(readOnly = true)
-    public RoomInviteResponse getRoomByInviteCode(String inviteCode) {
-        Room room = roomRepository.findByInviteCode(inviteCode)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "유효하지 않은 초대 코드입니다."));
+    public RoomInviteResponse getRoomByInviteLinkToken(String inviteLinkToken) {
+        Room room = roomRepository.findByInviteLinkToken(inviteLinkToken)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "유효하지 않은 초대 링크입니다."));
         long count = roomMemberRepository.countByRoom(room);
         boolean joinable = room.getStatus() == RoomStatus.RECRUITING && count < room.getMaxMembers();
         return new RoomInviteResponse(
@@ -124,9 +129,12 @@ public class RoomService {
     }
 
     @Transactional
-    public RoomDetailResponse joinRoom(String email, Long roomId) {
+    public RoomDetailResponse joinRoom(String email, Long roomId, JoinRoomRequest request) {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."));
+        if (!room.getInviteCode().equals(request.getInviteCode())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "초대 코드가 올바르지 않습니다.");
+        }
         if (room.getStatus() != RoomStatus.RECRUITING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "참여 가능한 상태가 아닙니다.");
         }
@@ -164,9 +172,17 @@ public class RoomService {
     private String generateInviteCode() {
         String code;
         do {
-            code = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+            code = UUID.randomUUID().toString().replace("-", "").substring(0, 6);
         } while (roomRepository.existsByInviteCode(code));
         return code;
+    }
+
+    private String generateInviteLinkToken() {
+        String token;
+        do {
+            token = UUID.randomUUID().toString().replace("-", "");
+        } while (roomRepository.existsByInviteLinkToken(token));
+        return token;
     }
 
     private UserEntity findUserByEmail(String email) {
