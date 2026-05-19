@@ -6,10 +6,10 @@ import lombok.*;
 
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Data
+@Getter
 @Builder
 @Entity
-@Table(name = "user")
+@Table(name = "users")
 public class UserEntity extends BaseTime {
 
     @Id

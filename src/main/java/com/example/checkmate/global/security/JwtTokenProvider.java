@@ -1,6 +1,5 @@
 package com.example.checkmate.global.security;
 
-import org.springframework.stereotype.Component;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;

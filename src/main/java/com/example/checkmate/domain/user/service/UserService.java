@@ -1,7 +1,9 @@
 package com.example.checkmate.domain.user.service;
 
+import com.example.checkmate.domain.point.service.PointService;
 import com.example.checkmate.domain.user.dto.UserLoginRequest;
 import com.example.checkmate.domain.user.dto.UserLoginResponse;
+import com.example.checkmate.domain.user.dto.UserMeResponse;
 import com.example.checkmate.domain.user.dto.UserSignupRequest;
 import com.example.checkmate.domain.user.entity.UserEntity;
 import com.example.checkmate.domain.user.repository.UserRepository;
@@ -28,6 +30,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
+    private final PointService pointService;
 
     /* 회원가입
      * 1. 이메일 중복 검사
@@ -60,6 +63,8 @@ public class UserService {
         );
         // 4. 회원 저장
         userRepository.save(user);
+        // 5. 포인트 지갑 생성 및 가입 보너스 지급
+        pointService.createInitialWallet(user);
     }
 
     /*
@@ -135,5 +140,21 @@ public class UserService {
                     "이메일 또는 비밀번호가 올바르지 않습니다."
             );
         }
+    }
+
+    @Transactional(readOnly = true)
+    public UserMeResponse getMe(String email) {
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "사용자를 찾을 수 없습니다."
+                ));
+        return new UserMeResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getName(),
+                user.getNickname(),
+                user.getRole().name()
+        );
     }
 }
