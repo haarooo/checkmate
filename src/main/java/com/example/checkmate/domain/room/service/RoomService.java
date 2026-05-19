@@ -2,6 +2,7 @@ package com.example.checkmate.domain.room.service;
 
 import com.example.checkmate.domain.point.service.PointService;
 import com.example.checkmate.domain.room.dto.JoinRoomRequest;
+import com.example.checkmate.domain.room.entity.ProofFrequencyType;
 import com.example.checkmate.domain.room.dto.RoomCreateRequest;
 import com.example.checkmate.domain.room.dto.RoomDetailResponse;
 import com.example.checkmate.domain.room.dto.RoomInviteResponse;
@@ -35,6 +36,14 @@ public class RoomService {
 
     @Transactional
     public RoomDetailResponse createRoom(String email, RoomCreateRequest request) {
+        if (request.getProofFrequencyType() == ProofFrequencyType.WEEKLY) {
+            if (request.getDurationDays() % 7 != 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "주 단위 방은 진행 기간이 7의 배수여야 합니다.");
+            }
+            if (request.getRequiredProofCount() > 7) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "주 단위 인증 횟수는 7 이하여야 합니다.");
+            }
+        }
         UserEntity user = findUserByEmail(email);
         String inviteCode = generateInviteCode();
         String inviteLinkToken = generateInviteLinkToken();
@@ -49,7 +58,9 @@ public class RoomService {
                 request.getDeadlineTime(),
                 request.getTargetRate(),
                 request.getStakePoint(),
-                request.getMaxMembers()
+                request.getMaxMembers(),
+                request.getProofFrequencyType(),
+                request.getRequiredProofCount()
         );
         roomRepository.save(room);
 
@@ -72,7 +83,9 @@ public class RoomService {
                         member.getRoom().getInviteCode(),
                         member.getRoom().getInviteLinkToken(),
                         roomMemberRepository.countByRoom(member.getRoom()),
-                        member.getRole().name()
+                        member.getRole().name(),
+                        member.getRoom().getProofFrequencyType().name(),
+                        member.getRoom().getRequiredProofCount()
                 ))
                 .toList();
     }
@@ -106,7 +119,9 @@ public class RoomService {
                 room.getMissionStartDate(),
                 room.getMissionEndDate(),
                 memberCount,
-                myRole
+                myRole,
+                room.getProofFrequencyType().name(),
+                room.getRequiredProofCount()
         );
     }
 
@@ -127,7 +142,9 @@ public class RoomService {
                 room.getStakePoint(),
                 room.getMaxMembers(),
                 count,
-                joinable
+                joinable,
+                room.getProofFrequencyType().name(),
+                room.getRequiredProofCount()
         );
     }
 

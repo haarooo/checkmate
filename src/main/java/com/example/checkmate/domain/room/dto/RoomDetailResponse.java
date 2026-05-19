@@ -25,4 +25,6 @@ public class RoomDetailResponse {
     private LocalDate missionEndDate;
     private long currentMemberCount;
     private String myRole;
+    private String proofFrequencyType;
+    private int requiredProofCount;
 }

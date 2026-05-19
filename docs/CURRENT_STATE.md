@@ -11,6 +11,11 @@
 - `GET /api/points/me/ledgers` 이력 조회 (최신순)
 - `POST /api/points/test/charge` 테스트 충전
 - `POST /api/rooms` 방 생성 (RECRUITING, inviteCode 6자 + inviteLinkToken 32자 자동 생성, 생성자 OWNER 등록)
+  - proofFrequencyType (DAILY / WEEKLY), requiredProofCount 필수 입력
+  - WEEKLY: durationDays가 7의 배수 아니면 400, requiredProofCount > 7이면 400
+  - DAILY: requiredProofCount 1 이상이면 허용
+  - RoomInviteResponse / RoomSummaryResponse / RoomDetailResponse에 두 필드 포함
+- SecurityConfig: `/error` permitAll 추가 (ResponseStatusException error dispatch 403 방지)
 - `GET /api/rooms` 내가 속한 방 목록 조회
 - `GET /api/rooms/{roomId}` 방 상세 조회 (비멤버 403, 없는 방 404)
 - `GET /api/rooms/invite/{inviteLinkToken}` 초대 링크 미리보기 (비로그인 허용, inviteCode 미포함)
@@ -58,9 +63,18 @@
 - Room potPoint 증가 확인
 - 전원 예치 완료 시 Room status READY 자동 전환 확인
 
+## 5단계-b proofFrequencyType 테스트 완료 내용
+- build 성공
+- DAILY + requiredProofCount=1 방 생성 201 확인
+- WEEKLY + durationDays=7 + requiredProofCount=3 방 생성 201 확인
+- WEEKLY + durationDays=5 → 400 확인
+- WEEKLY + requiredProofCount=8 → 400 확인
+- POST /api/rooms 응답에 proofFrequencyType, requiredProofCount 포함 확인
+- GET /api/rooms, GET /api/rooms/{roomId}, GET /api/rooms/invite/{token} 동일 필드 포함 확인
+
 ## 다음 단계
 - 6단계: `POST /api/rooms/{roomId}/start` (OWNER만, READY 상태만, IN_PROGRESS 전환)
 
 ## 문서 상태
-research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`
+research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`

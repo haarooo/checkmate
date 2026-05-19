@@ -1,5 +1,6 @@
 package com.example.checkmate.domain.room.dto;
 
+import com.example.checkmate.domain.room.entity.ProofFrequencyType;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -30,4 +31,10 @@ public class RoomCreateRequest {
 
     @Min(value = 2, message = "최대 인원은 2명 이상이어야 합니다.")
     private int maxMembers;
+
+    @NotNull(message = "인증 빈도 타입은 필수입니다.")
+    private ProofFrequencyType proofFrequencyType;
+
+    @Min(value = 1, message = "인증 횟수는 1 이상이어야 합니다.")
+    private int requiredProofCount;
 }

@@ -19,4 +19,6 @@ public class RoomInviteResponse {
     private int maxMembers;
     private long currentMemberCount;
     private boolean joinable;
+    private String proofFrequencyType;
+    private int requiredProofCount;
 }

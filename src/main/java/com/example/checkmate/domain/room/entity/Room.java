@@ -60,6 +60,13 @@ public class Room extends BaseTime {
     private LocalDate missionStartDate;
     private LocalDate missionEndDate;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProofFrequencyType proofFrequencyType;
+
+    @Column(nullable = false)
+    private int requiredProofCount;
+
     public static Room create(
             UserEntity owner,
             String title,
@@ -70,7 +77,9 @@ public class Room extends BaseTime {
             LocalTime deadlineTime,
             int targetRate,
             long stakePoint,
-            int maxMembers
+            int maxMembers,
+            ProofFrequencyType proofFrequencyType,
+            int requiredProofCount
     ) {
         Room room = new Room();
         room.owner = owner;
@@ -87,6 +96,8 @@ public class Room extends BaseTime {
         room.potPoint = 0L;
         room.missionStartDate = null;
         room.missionEndDate = null;
+        room.proofFrequencyType = proofFrequencyType;
+        room.requiredProofCount = requiredProofCount;
         return room;
     }
 

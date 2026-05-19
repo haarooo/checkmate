@@ -15,4 +15,6 @@ public class RoomSummaryResponse {
     private String inviteLinkToken;
     private long currentMemberCount;
     private String myRole;
+    private String proofFrequencyType;
+    private int requiredProofCount;
 }
