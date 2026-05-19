@@ -2,9 +2,12 @@ package com.example.checkmate.domain.room.service;
 
 import com.example.checkmate.domain.room.dto.RoomCreateRequest;
 import com.example.checkmate.domain.room.dto.RoomDetailResponse;
+import com.example.checkmate.domain.room.dto.RoomInviteResponse;
+import com.example.checkmate.domain.room.dto.RoomMemberResponse;
 import com.example.checkmate.domain.room.dto.RoomSummaryResponse;
 import com.example.checkmate.domain.room.entity.Room;
 import com.example.checkmate.domain.room.entity.RoomMember;
+import com.example.checkmate.domain.room.entity.RoomStatus;
 import com.example.checkmate.domain.room.repository.RoomMemberRepository;
 import com.example.checkmate.domain.room.repository.RoomRepository;
 import com.example.checkmate.domain.user.entity.UserEntity;
@@ -97,6 +100,65 @@ public class RoomService {
                 memberCount,
                 myRole
         );
+    }
+
+    @Transactional(readOnly = true)
+    public RoomInviteResponse getRoomByInviteCode(String inviteCode) {
+        Room room = roomRepository.findByInviteCode(inviteCode)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "유효하지 않은 초대 코드입니다."));
+        long count = roomMemberRepository.countByRoom(room);
+        boolean joinable = room.getStatus() == RoomStatus.RECRUITING && count < room.getMaxMembers();
+        return new RoomInviteResponse(
+                room.getId(),
+                room.getTitle(),
+                room.getDescription(),
+                room.getStatus().name(),
+                room.getDurationDays(),
+                room.getDeadlineTime(),
+                room.getTargetRate(),
+                room.getStakePoint(),
+                room.getMaxMembers(),
+                count,
+                joinable
+        );
+    }
+
+    @Transactional
+    public RoomDetailResponse joinRoom(String email, Long roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."));
+        if (room.getStatus() != RoomStatus.RECRUITING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "참여 가능한 상태가 아닙니다.");
+        }
+        UserEntity user = findUserByEmail(email);
+        if (roomMemberRepository.findByRoomAndUser(room, user).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 참여한 방입니다.");
+        }
+        long count = roomMemberRepository.countByRoom(room);
+        if (count >= room.getMaxMembers()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "최대 인원을 초과했습니다.");
+        }
+        RoomMember member = RoomMember.createMember(room, user);
+        roomMemberRepository.save(member);
+        return toDetailResponse(room, count + 1, member.getRole().name());
+    }
+
+    @Transactional(readOnly = true)
+    public List<RoomMemberResponse> getRoomMembers(String email, Long roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."));
+        UserEntity user = findUserByEmail(email);
+        roomMemberRepository.findByRoomAndUser(room, user)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "방 멤버가 아닙니다."));
+        return roomMemberRepository.findAllByRoomOrderByJoinedAtAsc(room).stream()
+                .map(m -> new RoomMemberResponse(
+                        m.getUser().getId(),
+                        m.getUser().getNickname(),
+                        m.getRole().name(),
+                        m.getStatus().name(),
+                        m.getJoinedAt()
+                ))
+                .toList();
     }
 
     private String generateInviteCode() {

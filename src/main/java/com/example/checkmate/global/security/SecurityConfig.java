@@ -83,6 +83,10 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll()
 
+                        .requestMatchers(
+                                HttpMethod.GET, "/api/rooms/invite/**"
+                        ).permitAll()
+
                         /*
                          * 위에서 허용하지 않은 나머지 API는 일단 로그인 필요
                          *
@@ -91,7 +95,6 @@ public class SecurityConfig {
                          */
                         .anyRequest().authenticated()
                 )
-
                 /*
                  * 로그인 인증에 사용할 AuthenticationProvider 등록
                  */

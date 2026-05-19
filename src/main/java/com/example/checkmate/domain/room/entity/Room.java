@@ -32,6 +32,9 @@ public class Room extends BaseTime {
     @Column(nullable = false, unique = true)
     private String inviteCode;
 
+    @Column(nullable = false, unique = true)
+    private String inviteLinkToken;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RoomStatus status;

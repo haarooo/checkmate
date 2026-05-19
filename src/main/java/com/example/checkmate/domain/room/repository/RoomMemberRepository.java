@@ -10,6 +10,7 @@ import java.util.Optional;
 
 public interface RoomMemberRepository extends JpaRepository<RoomMember, Long> {
     List<RoomMember> findAllByUser(UserEntity user);
+    List<RoomMember> findAllByRoomOrderByJoinedAtAsc(Room room);
     Optional<RoomMember> findByRoomAndUser(Room room, UserEntity user);
     long countByRoom(Room room);
 }

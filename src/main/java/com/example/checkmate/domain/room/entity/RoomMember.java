@@ -57,4 +57,16 @@ public class RoomMember extends BaseTime {
         member.stakedAt = null;
         return member;
     }
+
+    public static RoomMember createMember(Room room, UserEntity user) {
+        RoomMember member = new RoomMember();
+        member.room = room;
+        member.user = user;
+        member.role = RoomMemberRole.MEMBER;
+        member.status = RoomMemberStatus.JOINED;
+        member.stakedPoint = 0L;
+        member.joinedAt = LocalDateTime.now();
+        member.stakedAt = null;
+        return member;
+    }
 }
