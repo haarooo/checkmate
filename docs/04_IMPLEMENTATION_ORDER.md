@@ -13,7 +13,7 @@
 5. Stake: 포인트 차감, Ledger 기록, 전원 STAKED 시 READY.
 6. Start: OWNER만, READY만, 다음 날 시작, IN_PROGRESS.
 7. Local File Upload: MultipartFile, UUID 파일명, 로컬 저장.
-8. Proof Submit: content/image 중 하나 필수, 하루 1회, SUBMITTED.
+8. Proof Submit: content/file 중 하나 필수, DAILY/WEEKLY 기준별 requiredProofCount 제출 제한, SUBMITTED.
 9. Proof Confirm: 본인 확인 금지, 중복 금지, CONFIRMED 전환.
 10. Today Status: RoomMember 기준 CONFIRMED/SUBMITTED/NOT_SUBMITTED.
 11. Member Stats: 인증률, 성공 필요 횟수, 예상 결과.

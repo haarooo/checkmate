@@ -14,10 +14,13 @@
 
 ## Proof
 - 방 멤버만 IN_PROGRESS에서 인증 가능.
-- 날짜 기준은 Asia/Seoul.
-- content 또는 image 중 하나 필수.
-- 텍스트만/이미지만/둘 다 가능.
-- 같은 방+사용자+날짜 인증 1개.
+- 날짜/주차 기준은 Asia/Seoul.
+- content 또는 file 중 하나 필수.
+- 텍스트만/파일만/둘 다 가능.
+- file은 이미지(jpg/jpeg/png/gif/webp) 또는 동영상(mp4/mov/webm) 허용.
+- 제출 제한 (proofFrequencyType 기준):
+  - DAILY: 같은 room+user+proofDate 기준 당일 제출 수 < requiredProofCount이면 제출 가능, 초과 시 409.
+  - WEEKLY: Asia/Seoul 기준 월~일 주차 내 같은 room+user 제출 수 < requiredProofCount이면 제출 가능, 초과 시 409.
 - 제출 직후 SUBMITTED.
 - 작성자 본인 확인 금지.
 - 다른 멤버 1명 이상 확인 시 CONFIRMED.

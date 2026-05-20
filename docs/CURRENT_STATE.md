@@ -22,6 +22,13 @@
 - `POST /api/rooms/{roomId}/join` 방 참여 (inviteCode body 검증, 불일치 400, 중복/만원/모집중아님 409)
 - `GET /api/rooms/{roomId}/members` 방 멤버 목록 조회 (비멤버 403)
 - `POST /api/rooms/{roomId}/stake` 예치금 납부 (잔액부족 400, 비멤버 403, 상태충돌 409, 전원 STAKED 시 READY 자동 전환)
+- `POST /api/rooms/{roomId}/start` 방 시작 (OWNER만, READY 상태만, 인원/STAKED 이중 검증,
+  IN_PROGRESS 전환, missionStartDate=Asia/Seoul 기준 오늘+1일, missionEndDate=start+durationDays-1일)
+- Local File Upload 인프라 구성 (API 없음, 8단계 Proof Submit에서 실제 사용)
+  - 허용: 이미지(jpg/jpeg/png/gif/webp) + 동영상(mp4/mov/webm)
+  - 저장 위치: 프로젝트 루트 uploads/proofs/, storedName=UUID+확장자
+  - GET /uploads/** 정적 파일 서빙 (WebConfig), SecurityConfig permitAll 사용자 직접 추가
+  - .gitignore에 uploads/ 추가
 
 주의:
 - 위 기능을 처음부터 다시 만들지 않는다.
@@ -33,8 +40,10 @@
 - `UserMeResponse` DTO 추가
 - `UserService.signup()`: PointWallet 생성 + SIGNUP_BONUS 연결
 - `domain/point/` 패키지: PointWallet, PointLedger, LedgerType, 관련 Repository/Service/Controller/DTO
+- `global/storage/` 패키지: `LocalFileStorageService`, `FileUploadResult`
+- `global/config/` 패키지: `WebConfig` (/uploads/** 정적 파일 서빙)
 - `domain/room/` 패키지
-  - entity: `Room`, `RoomStatus`, `RoomMember`, `RoomMemberRole`, `RoomMemberStatus`
+  - entity: `Room` (start() 추가), `RoomStatus`, `RoomMember`, `RoomMemberRole`, `RoomMemberStatus`
   - repository: `RoomRepository`, `RoomMemberRepository`
   - service: `RoomService`
   - controller: `RoomController`
@@ -55,6 +64,11 @@
 ## RoomMemberStatus 값 (전체)
 `JOINED, STAKED, SUCCESS, FAILED, SETTLED` — 현재 사용값: `JOINED`, `STAKED`
 
+## Proof 제출 기준 확정
+- DAILY: 같은 room+user+proofDate 당일 제출 수 < requiredProofCount → 제출 가능, 초과 409
+- WEEKLY: Asia/Seoul 월~일 주차 내 같은 room+user 제출 수 < requiredProofCount → 제출 가능, 초과 409
+- content 또는 file 중 하나 필수, file = 이미지(jpg/jpeg/png/gif/webp) or 동영상(mp4/mov/webm)
+
 ## 5단계 stake 테스트 완료 내용
 - 정상 stake 성공
 - PointWallet balance 차감 확인
@@ -72,9 +86,25 @@
 - POST /api/rooms 응답에 proofFrequencyType, requiredProofCount 포함 확인
 - GET /api/rooms, GET /api/rooms/{roomId}, GET /api/rooms/invite/{token} 동일 필드 포함 확인
 
+## 7단계 Local File Upload 완료 내용
+- build 성공, 서버 실행 정상
+- LocalFileStorageService.store() 구현 (검증 → 저장 → FileUploadResult 반환)
+- WebConfig /uploads/** 정적 서빙 구성
+- SecurityConfig GET /uploads/** permitAll 사용자 직접 추가 완료
+- 실제 업로드 테스트는 8단계 Proof Submit에서 진행
+
+## 6단계 start 테스트 완료 내용
+- 정상 start 200 확인 (OWNER, READY 상태)
+- 응답 status IN_PROGRESS 확인
+- missionStartDate = 오늘+1일, missionEndDate = start+durationDays-1일 확인
+- 비OWNER(MEMBER) start → 403 확인
+- RECRUITING 상태 방 start → 409 확인
+- IN_PROGRESS 방 중복 start → 409 확인
+- 비멤버 start → 403 확인
+
 ## 다음 단계
-- 6단계: `POST /api/rooms/{roomId}/start` (OWNER만, READY 상태만, IN_PROGRESS 전환)
+- 8단계: Proof Submit (content/file 중 하나 필수, DAILY/WEEKLY 기준별 requiredProofCount 제출 제한, SUBMITTED)
 
 ## 문서 상태
-research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`
+research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`

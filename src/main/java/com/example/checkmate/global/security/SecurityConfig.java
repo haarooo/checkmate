@@ -81,7 +81,8 @@ public class SecurityConfig {
                                 "/api/users/login",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/error"
+                                "/error",
+                                "/uploads/**"
                         ).permitAll()
 
                         .requestMatchers(

@@ -39,3 +39,6 @@ out/
 # application config
 src/main/resources/application.properties
 
+# uploaded files
+uploads/
+

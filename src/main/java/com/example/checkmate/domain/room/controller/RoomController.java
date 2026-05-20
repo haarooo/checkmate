@@ -65,6 +65,13 @@ public class RoomController {
         return ResponseEntity.ok(roomService.stakeRoom(authentication.getName(), roomId));
     }
 
+    @PostMapping("/{roomId}/start")
+    public ResponseEntity<RoomDetailResponse> startRoom(
+            Authentication authentication,
+            @PathVariable Long roomId) {
+        return ResponseEntity.ok(roomService.startRoom(authentication.getName(), roomId));
+    }
+
     @GetMapping("/{roomId}/members")
     public ResponseEntity<List<RoomMemberResponse>> getRoomMembers(
             Authentication authentication,

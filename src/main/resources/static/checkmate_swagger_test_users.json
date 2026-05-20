@@ -1,0 +1,63 @@
+{
+  "signupRequests": [
+    {
+      "email": "test1@test.com",
+      "password": "12345678",
+      "name": "테스터1",
+      "nickname": "tester1"
+    },
+    {
+      "email": "test2@test.com",
+      "password": "12345678",
+      "name": "테스터2",
+      "nickname": "tester2"
+    },
+    {
+      "email": "test3@test.com",
+      "password": "12345678",
+      "name": "테스터3",
+      "nickname": "tester3"
+    },
+    {
+      "email": "test4@test.com",
+      "password": "12345678",
+      "name": "테스터4",
+      "nickname": "tester4"
+    },
+    {
+      "email": "test5@test.com",
+      "password": "12345678",
+      "name": "테스터5",
+      "nickname": "tester5"
+    }
+  ],
+  "loginRequests": [
+    {
+      "email": "test1@test.com",
+      "password": "12345678"
+    },
+    {
+      "email": "test2@test.com",
+      "password": "12345678"
+    },
+    {
+      "email": "test3@test.com",
+      "password": "12345678"
+    },
+    {
+      "email": "test4@test.com",
+      "password": "12345678"
+    },
+    {
+      "email": "test5@test.com",
+      "password": "12345678"
+    }
+  ],
+  "usageMemo": {
+    "test1": "방장 테스트용",
+    "test2": "멤버1 테스트용",
+    "test3": "멤버2 테스트용",
+    "test4": "비멤버/실패 케이스 테스트용",
+    "test5": "여분 테스트용"
+  }
+}

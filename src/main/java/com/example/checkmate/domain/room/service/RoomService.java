@@ -10,6 +10,7 @@ import com.example.checkmate.domain.room.dto.RoomMemberResponse;
 import com.example.checkmate.domain.room.dto.RoomSummaryResponse;
 import com.example.checkmate.domain.room.entity.Room;
 import com.example.checkmate.domain.room.entity.RoomMember;
+import com.example.checkmate.domain.room.entity.RoomMemberRole;
 import com.example.checkmate.domain.room.entity.RoomMemberStatus;
 import com.example.checkmate.domain.room.entity.RoomStatus;
 import com.example.checkmate.domain.room.repository.RoomMemberRepository;
@@ -22,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -216,6 +219,39 @@ public class RoomService {
         }
 
         return toDetailResponse(room, totalCount, member.getRole().name());
+    }
+
+    @Transactional
+    public RoomDetailResponse startRoom(String email, Long roomId) {
+        Room room = roomRepository.findByIdForUpdate(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."));
+
+        UserEntity user = findUserByEmail(email);
+        RoomMember member = roomMemberRepository.findByRoomAndUser(room, user)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "방 멤버가 아닙니다."));
+
+        if (member.getRole() != RoomMemberRole.OWNER) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "방장만 시작할 수 있습니다.");
+        }
+        if (room.getStatus() != RoomStatus.READY) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "READY 상태의 방만 시작할 수 있습니다.");
+        }
+
+        long currentCount = roomMemberRepository.countByRoom(room);
+        if (currentCount != room.getMaxMembers()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "전원이 참여해야 시작할 수 있습니다.");
+        }
+
+        long stakedCount = roomMemberRepository.countByRoomAndStatus(room, RoomMemberStatus.STAKED);
+        if (stakedCount != room.getMaxMembers()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "전원이 예치금을 납부해야 시작할 수 있습니다.");
+        }
+
+        LocalDate missionStartDate = LocalDate.now(ZoneId.of("Asia/Seoul")).plusDays(1);
+        LocalDate missionEndDate = missionStartDate.plusDays(room.getDurationDays() - 1);
+        room.start(missionStartDate, missionEndDate);
+
+        return toDetailResponse(room, currentCount, member.getRole().name());
     }
 
     private String generateInviteCode() {

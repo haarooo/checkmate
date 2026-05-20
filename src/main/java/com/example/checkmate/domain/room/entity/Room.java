@@ -108,4 +108,10 @@ public class Room extends BaseTime {
     public void markReady() {
         this.status = RoomStatus.READY;
     }
+
+    public void start(LocalDate missionStartDate, LocalDate missionEndDate) {
+        this.status = RoomStatus.IN_PROGRESS;
+        this.missionStartDate = missionStartDate;
+        this.missionEndDate = missionEndDate;
+    }
 }

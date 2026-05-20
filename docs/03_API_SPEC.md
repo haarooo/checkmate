@@ -30,6 +30,8 @@
 
 ## Proof
 - POST `/api/rooms/{roomId}/proofs` multipart/form-data
+  - content/file 중 하나 필수
+  - DAILY: 당일 제출 수 < requiredProofCount, WEEKLY: 주차 제출 수 < requiredProofCount, 초과 시 409
 - GET `/api/rooms/{roomId}/proofs`
 - GET `/api/proofs/{proofId}`
 - POST `/api/proofs/{proofId}/confirm`
