@@ -31,9 +31,10 @@ POST /api/rooms/{roomId}/proofs — DAILY/WEEKLY 기준별 제출 제한 포함 
   2. 403 (비멤버)
   3. 409 (IN_PROGRESS 아님)
   4. 409 (proofDate < missionStartDate 또는 proofDate > missionEndDate)
-  5. 400 (file != null && file.isEmpty())
-  6. 400 (content blank + file null)
-  7. 409 (제출 수 >= requiredProofCount, DAILY/WEEKLY 분기)
+  5. 409 (deadlineTime: nowTime.isAfter(room.getDeadlineTime()))
+  6. 400 (file != null && file.isEmpty())
+  7. 400 (content blank + file null)
+  8. 409 (제출 수 >= requiredProofCount, DAILY/WEEKLY 분기)
 - WEEKLY: weekStart = proofDate.with(DayOfWeek.MONDAY)
           weekEnd   = proofDate.with(DayOfWeek.SUNDAY)
           import java.time.DayOfWeek

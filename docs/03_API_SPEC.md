@@ -32,9 +32,13 @@
 - POST `/api/rooms/{roomId}/proofs` multipart/form-data
   - content/file 중 하나 필수
   - DAILY: 당일 제출 수 < requiredProofCount, WEEKLY: 주차 제출 수 < requiredProofCount, 초과 시 409
+  - deadlineTime 이후 제출 → 409
 - GET `/api/rooms/{roomId}/proofs`
 - GET `/api/proofs/{proofId}`
 - POST `/api/proofs/{proofId}/confirm`
+  - 본인 확인 금지 → 403
+  - 중복 ProofConfirmation (같은 confirmer) → 409
+  - CONFIRMED 전환. 이미 CONFIRMED 상태 proof에 새 confirmer 확인 → 200 (idempotent, confirmedAt 유지)
 - DELETE `/api/proofs/{proofId}` 선택
 
 ## Settlement

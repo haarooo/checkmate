@@ -72,4 +72,12 @@ public class Proof extends BaseTime {
         proof.confirmedAt = null;
         return proof;
     }
+
+    public void confirm(LocalDateTime confirmedAt) {
+        if (this.status == ProofStatus.CONFIRMED) {
+            return;
+        }
+        this.status = ProofStatus.CONFIRMED;
+        this.confirmedAt = confirmedAt;
+    }
 }

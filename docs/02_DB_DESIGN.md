@@ -9,6 +9,7 @@ MySQL 기준. 상세 정책은 `01_BUSINESS_RULES.md`.
 - rooms: id, owner_id FK, title, description, invite_code UNIQUE, status, duration_days, deadline_time, target_rate, stake_point, max_members, pot_point, mission_start_date, mission_end_date, created_at, updated_at
 - room_members: id, room_id FK, user_id FK, role, status, staked_point, joined_at, staked_at, created_at, updated_at
 - proofs: id, room_id FK, user_id FK, proof_date, content, file_url, file_original_name, file_stored_name, file_size, file_content_type, status, confirmed_at, created_at, updated_at
+  - status: SUBMITTED, CONFIRMED만 허용 (REJECTED/EXPIRED 금지)
 - proof_confirmations: id, proof_id FK, room_id FK, confirmer_id FK, created_at
 - settlements: id, room_id FK UNIQUE, total_pot_point, success_count, reward_per_member, remainder_point, status, settled_at, created_at
 - settlement_members: id, settlement_id FK, room_id FK, user_id FK, result, confirmed_count, proof_rate, reward_point, created_at

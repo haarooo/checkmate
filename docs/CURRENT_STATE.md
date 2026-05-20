@@ -24,6 +24,13 @@
 - `POST /api/rooms/{roomId}/stake` 예치금 납부 (잔액부족 400, 비멤버 403, 상태충돌 409, 전원 STAKED 시 READY 자동 전환)
 - `POST /api/rooms/{roomId}/start` 방 시작 (OWNER만, READY 상태만, 인원/STAKED 이중 검증,
   IN_PROGRESS 전환, missionStartDate=Asia/Seoul 기준 오늘+1일, missionEndDate=start+durationDays-1일)
+- `POST /api/rooms/{roomId}/proofs` 인증 제출 (multipart/form-data, content/file 중 하나 필수,
+  IN_PROGRESS + 미션 기간 내에만 허용, DAILY/WEEKLY 기준 requiredProofCount 제출 수 제한, 초과 409, SUBMITTED)
+  - proofDate < missionStartDate → 409 (start 당일 제출 차단)
+  - 파일 있으면 LocalFileStorageService.store() → uploads/proofs/ 저장
+  - deadlineTime 이후 제출 → 409 (Asia/Seoul 기준 nowTime.isAfter(room.deadlineTime), 정각은 허용)
+- `POST /api/proofs/{proofId}/confirm` 인증 확인 (방 멤버만, 본인 확인 금지 403, 중복 확인 409,
+  CONFIRMED 전환, confirmedAt 최초 확인 시점 고정, 이미 CONFIRMED면 200 idempotent)
 - Local File Upload 인프라 구성 (API 없음, 8단계 Proof Submit에서 실제 사용)
   - 허용: 이미지(jpg/jpeg/png/gif/webp) + 동영상(mp4/mov/webm)
   - 저장 위치: 프로젝트 루트 uploads/proofs/, storedName=UUID+확장자
@@ -42,6 +49,12 @@
 - `domain/point/` 패키지: PointWallet, PointLedger, LedgerType, 관련 Repository/Service/Controller/DTO
 - `global/storage/` 패키지: `LocalFileStorageService`, `FileUploadResult`
 - `global/config/` 패키지: `WebConfig` (/uploads/** 정적 파일 서빙)
+- `domain/proof/` 패키지
+  - entity: `Proof` (confirm() 추가), `ProofStatus`, `ProofConfirmation`
+  - repository: `ProofRepository` (findByIdForUpdate 추가), `ProofConfirmationRepository`
+  - service: `ProofService` (confirmProof() 추가)
+  - controller: `ProofController`, `ProofConfirmController`
+  - dto: `ProofSubmitResponse`, `ProofConfirmResponse`
 - `domain/room/` 패키지
   - entity: `Room` (start() 추가), `RoomStatus`, `RoomMember`, `RoomMemberRole`, `RoomMemberStatus`
   - repository: `RoomRepository`, `RoomMemberRepository`
@@ -102,9 +115,35 @@
 - IN_PROGRESS 방 중복 start → 409 확인
 - 비멤버 start → 403 확인
 
+## 8단계 Proof Submit 테스트 완료 내용
+- build 성공
+- content만 제출 201 확인
+- file만 제출 201 (이미지/동영상) 확인
+- content + file 동시 제출 201 확인
+- start 당일 제출 → 미션 기간 전 409 확인
+- content + file 모두 없음 → 400 확인
+- 빈 파일 전송 → 400 확인
+- 비멤버 요청 → 403 확인
+- IN_PROGRESS 아닌 방 → 409 확인
+- 제출 수 초과 → 409 확인 (DAILY/WEEKLY)
+- uploads/proofs/ 파일 저장 및 /uploads/proofs/{storedName} 접근 확인
+
+## 8단계 보완 완료: ProofService deadlineTime 검증
+- Asia/Seoul 기준 nowTime.isAfter(room.deadlineTime)이면 409
+- deadlineTime 정각은 허용, 이후만 차단
+- deadlineTime 이후 제출 → 409 테스트 완료
+- build 성공, 서버 실행 정상
+
+## 9단계 Proof Confirm 테스트 완료 내용
+- build 성공, 서버 실행 정상
+- 본인 proof 확인 → 403 확인
+- 중복 확인 → 409 확인
+- 정상 확인 → 200, proof.status CONFIRMED 확인
+- 이미 CONFIRMED proof에 새 confirmer 확인 → 200, confirmedAt 유지 확인
+
 ## 다음 단계
-- 8단계: Proof Submit (content/file 중 하나 필수, DAILY/WEEKLY 기준별 requiredProofCount 제출 제한, SUBMITTED)
+- 10단계: Today Status (RoomMember 기준 CONFIRMED/SUBMITTED/NOT_SUBMITTED)
 
 ## 문서 상태
-research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`
+research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`
