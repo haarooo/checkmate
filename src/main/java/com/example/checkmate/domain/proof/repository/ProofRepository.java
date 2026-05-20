@@ -1,6 +1,7 @@
 package com.example.checkmate.domain.proof.repository;
 
 import com.example.checkmate.domain.proof.entity.Proof;
+import com.example.checkmate.domain.proof.entity.ProofStatus;
 import com.example.checkmate.domain.room.entity.Room;
 import com.example.checkmate.domain.user.entity.UserEntity;
 import jakarta.persistence.LockModeType;
@@ -15,6 +16,8 @@ import java.util.Optional;
 public interface ProofRepository extends JpaRepository<Proof, Long> {
     long countByRoomAndUserAndProofDate(Room room, UserEntity user, LocalDate proofDate);
     long countByRoomAndUserAndProofDateBetween(Room room, UserEntity user, LocalDate start, LocalDate end);
+    long countByRoomAndUserAndProofDateAndStatus(Room room, UserEntity user, LocalDate proofDate, ProofStatus status);
+    long countByRoomAndUserAndProofDateBetweenAndStatus(Room room, UserEntity user, LocalDate start, LocalDate end, ProofStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Proof p WHERE p.id = :id")

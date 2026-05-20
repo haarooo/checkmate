@@ -31,6 +31,12 @@
   - deadlineTime 이후 제출 → 409 (Asia/Seoul 기준 nowTime.isAfter(room.deadlineTime), 정각은 허용)
 - `POST /api/proofs/{proofId}/confirm` 인증 확인 (방 멤버만, 본인 확인 금지 403, 중복 확인 409,
   CONFIRMED 전환, confirmedAt 최초 확인 시점 고정, 이미 CONFIRMED면 200 idempotent)
+- `GET /api/rooms/{roomId}/today-status` 현재 기간 인증 현황 조회
+  - IN_PROGRESS + 미션 기간 내에만 허용, 비멤버 403, 기간 외 409
+  - DAILY: 오늘 기준 / WEEKLY: 이번 주 월~일 기준
+  - 멤버별 submittedCount, confirmedCount, status(SUCCESS/WAITING_CONFIRM/NEED_SUBMIT/MISSED)
+  - deadlinePassed: DAILY는 매일, WEEKLY는 일요일 deadlineTime 이후
+  - myStatus + members 포함
 - Local File Upload 인프라 구성 (API 없음, 8단계 Proof Submit에서 실제 사용)
   - 허용: 이미지(jpg/jpeg/png/gif/webp) + 동영상(mp4/mov/webm)
   - 저장 위치: 프로젝트 루트 uploads/proofs/, storedName=UUID+확장자
@@ -51,15 +57,15 @@
 - `global/config/` 패키지: `WebConfig` (/uploads/** 정적 파일 서빙)
 - `domain/proof/` 패키지
   - entity: `Proof` (confirm() 추가), `ProofStatus`, `ProofConfirmation`
-  - repository: `ProofRepository` (findByIdForUpdate 추가), `ProofConfirmationRepository`
-  - service: `ProofService` (confirmProof() 추가)
+  - repository: `ProofRepository` (findByIdForUpdate + status count 메서드 추가), `ProofConfirmationRepository`
+  - service: `ProofService` (confirmProof() 추가), `TodayStatusService`
   - controller: `ProofController`, `ProofConfirmController`
-  - dto: `ProofSubmitResponse`, `ProofConfirmResponse`
+  - dto: `ProofSubmitResponse`, `ProofConfirmResponse`, `TodayStatusResponse`, `ProofMemberStatusResponse`, `ProofProgressStatus`
 - `domain/room/` 패키지
   - entity: `Room` (start() 추가), `RoomStatus`, `RoomMember`, `RoomMemberRole`, `RoomMemberStatus`
   - repository: `RoomRepository`, `RoomMemberRepository`
   - service: `RoomService`
-  - controller: `RoomController`
+  - controller: `RoomController` (today-status 엔드포인트 추가)
   - dto: `RoomCreateRequest`, `RoomSummaryResponse`, `RoomDetailResponse`, `RoomInviteResponse`, `RoomMemberResponse`, `JoinRoomRequest`
 
 ## inviteLinkToken / inviteCode 설계 확정
@@ -141,9 +147,17 @@
 - 정상 확인 → 200, proof.status CONFIRMED 확인
 - 이미 CONFIRMED proof에 새 confirmer 확인 → 200, confirmedAt 유지 확인
 
+## 10단계 Today Status 테스트 완료 내용
+- build 성공, 서버 실행 정상
+- 비멤버 요청 → 403 확인
+- IN_PROGRESS 아닌 방 → 409 확인
+- 미션 기간 외(start 당일) → 409 확인
+- DAILY/WEEKLY 정상 조회 → 200 확인
+- submittedCount / confirmedCount / status 값 확인
+
 ## 다음 단계
-- 10단계: Today Status (RoomMember 기준 CONFIRMED/SUBMITTED/NOT_SUBMITTED)
+- 11단계: Member Stats (인증률, 성공 필요 횟수, 예상 결과)
 
 ## 문서 상태
-research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`
+research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`
