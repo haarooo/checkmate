@@ -15,6 +15,8 @@
 
 ## Room
 - POST `/api/rooms`
+  - DAILY: durationDays >= 28. WEEKLY: durationDays >= 28 AND durationDays % 7 == 0. 위반 시 400.
+  - stakePoint 1,000 이상 50,000 이하. 위반 시 400.
 - GET `/api/rooms`
 - GET `/api/rooms/{roomId}`
 - GET `/api/rooms/invite/{inviteCode}`
@@ -22,8 +24,7 @@
 - POST `/api/rooms/{roomId}/stake`
 - POST `/api/rooms/{roomId}/start`
 - GET `/api/rooms/{roomId}/members`
-- GET `/api/rooms/{roomId}/today`
-- GET `/api/rooms/{roomId}/records`
+- GET `/api/rooms/{roomId}/today-status`
 - GET `/api/rooms/{roomId}/members/stats`
 - PUT `/api/rooms/{roomId}` 선택
 - DELETE `/api/rooms/{roomId}/members/me` 선택
@@ -43,9 +44,15 @@
 
 ## Settlement
 - POST `/api/rooms/{roomId}/settle`
+  - 방 멤버 누구나 실행 가능 (OWNER 전용 아님). 비멤버 → 403.
+  - room.status != IN_PROGRESS → 409
+  - Asia/Seoul 기준 today <= missionEndDate → 409 (당일 정산 불가)
+  - 이미 Settlement 존재 (settlements.room_id UNIQUE) → 409
+  - 성공 시 200, room.status = SETTLED, RoomMember.status = SUCCESS/FAILED
 - GET `/api/rooms/{roomId}/settlement`
 
-## ShareCard
+## Post-MVP 후보
+- GET `/api/rooms/{roomId}/records`
 - GET `/api/rooms/{roomId}/share-card/me`
 - GET `/api/rooms/{roomId}/share-card/group`
 

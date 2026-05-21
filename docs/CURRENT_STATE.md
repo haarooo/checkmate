@@ -12,8 +12,10 @@
 - `POST /api/points/test/charge` 테스트 충전
 - `POST /api/rooms` 방 생성 (RECRUITING, inviteCode 6자 + inviteLinkToken 32자 자동 생성, 생성자 OWNER 등록)
   - proofFrequencyType (DAILY / WEEKLY), requiredProofCount 필수 입력
+  - durationDays < 28 → 400 (DAILY/WEEKLY 공통)
   - WEEKLY: durationDays가 7의 배수 아니면 400, requiredProofCount > 7이면 400
   - DAILY: requiredProofCount 1 이상이면 허용
+  - stakePoint < 1,000 or > 50,000 → 400
   - RoomInviteResponse / RoomSummaryResponse / RoomDetailResponse에 두 필드 포함
 - SecurityConfig: `/error` permitAll 추가 (ResponseStatusException error dispatch 403 방지)
 - `GET /api/rooms` 내가 속한 방 목록 조회
@@ -37,6 +39,14 @@
   - 멤버별 submittedCount, confirmedCount, status(SUCCESS/WAITING_CONFIRM/NEED_SUBMIT/MISSED)
   - deadlinePassed: DAILY는 매일, WEEKLY는 일요일 deadlineTime 이후
   - myStatus + members 포함
+- `POST /api/rooms/{roomId}/settle` 방 정산 (방 멤버 누구나, 비멤버 403, findByIdForUpdate 비관적 락)
+  - room.status != IN_PROGRESS → 409, today <= missionEndDate → 409, 이미 Settlement 존재 → 409
+  - CONFIRMED만 성공 인증으로 계산, requiredSuccessCount 비교로 SUCCESS/FAILED 판정
+  - 전원 성공: stakePoint 반환(REFUND) + successBonusPoint = min(stakePoint*10/100, 5000)(SUCCESS_BONUS)
+  - 일부 성공: 성공자 stakePoint 반환(REFUND) + failedPot 균등 분배(REWARD), joinedAt 오름차순 remainder
+  - 전원 실패: systemFee 30% 기록, refundPool 균등 환불(REFUND), joinedAt 오름차순 remainder
+  - 정산 후 room.status = SETTLED, RoomMember.status = SUCCESS / FAILED
+  - Settlement / SettlementMember DB 저장, PointWallet balance 증가 + PointLedger 양수 이력
 - `GET /api/rooms/{roomId}/members/stats` 미션 전체 기간 누적 통계 조회
   - IN_PROGRESS / SETTLED 허용, RECRUITING / READY 409, 비멤버 403
   - CONFIRMED만 성공 인증으로 계산 (SUBMITTED 제외)
@@ -64,6 +74,8 @@
 - `UserMeResponse` DTO 추가
 - `UserService.signup()`: PointWallet 생성 + SIGNUP_BONUS 연결
 - `domain/point/` 패키지: PointWallet, PointLedger, LedgerType, 관련 Repository/Service/Controller/DTO
+  - LedgerType: ROOM_SETTLEMENT_REFUND, ROOM_SETTLEMENT_SUCCESS_BONUS 추가 (ROOM_REFUND 레거시 보존)
+  - PointService: addForSettlement() 추가
 - `global/storage/` 패키지: `LocalFileStorageService`, `FileUploadResult`
 - `global/config/` 패키지: `WebConfig` (/uploads/** 정적 파일 서빙)
 - `domain/proof/` 패키지
@@ -73,11 +85,17 @@
   - controller: `ProofController`, `ProofConfirmController`
   - dto: `ProofSubmitResponse`, `ProofConfirmResponse`, `TodayStatusResponse`, `ProofMemberStatusResponse`, `ProofProgressStatus`, `MemberStatsResponse`, `MemberStatsMemberResponse`, `MemberExpectedResult`
 - `domain/room/` 패키지
-  - entity: `Room` (start() 추가), `RoomStatus`, `RoomMember`, `RoomMemberRole`, `RoomMemberStatus`
+  - entity: `Room` (start() / settle() 추가), `RoomStatus`, `RoomMember` (markSuccess() / markFailed() 추가), `RoomMemberRole`, `RoomMemberStatus`
   - repository: `RoomRepository`, `RoomMemberRepository`
-  - service: `RoomService`
+  - service: `RoomService` (createRoom 검증 추가: durationDays >= 28, stakePoint 범위)
   - controller: `RoomController` (today-status, members/stats 엔드포인트 추가)
   - dto: `RoomCreateRequest`, `RoomSummaryResponse`, `RoomDetailResponse`, `RoomInviteResponse`, `RoomMemberResponse`, `JoinRoomRequest`
+- `domain/settlement/` 패키지
+  - entity: `Settlement`, `SettlementMember`, `SettlementMemberResult`
+  - repository: `SettlementRepository`, `SettlementMemberRepository`
+  - service: `SettlementService`
+  - controller: `SettlementController`
+  - dto: `SettlementResponse`, `SettlementMemberResponse`
 
 ## inviteLinkToken / inviteCode 설계 확정
 
@@ -92,7 +110,7 @@
 - `RoomSummaryResponse`, `RoomDetailResponse`에는 둘 다 포함 (멤버용)
 
 ## RoomMemberStatus 값 (전체)
-`JOINED, STAKED, SUCCESS, FAILED, SETTLED` — 현재 사용값: `JOINED`, `STAKED`
+`JOINED, STAKED, SUCCESS, FAILED, SETTLED` — 현재 사용값: `JOINED`, `STAKED`, `SUCCESS`, `FAILED` (SETTLED는 레거시 보존, 미사용)
 
 ## Proof 제출 기준 확정
 - DAILY: 같은 room+user+proofDate 당일 제출 수 < requiredProofCount → 제출 가능, 초과 409
@@ -173,9 +191,21 @@
 - 정상 조회 → 200 확인
 - submittedCount / confirmedCount / proofRate / expectedResult 값 확인
 
+## 12단계 Settlement 테스트 완료 내용
+- build 성공, 서버 실행 정상
+- 비멤버 요청 → 403 확인
+- IN_PROGRESS 아닌 방 → 409 확인
+- missionEndDate 당일 정산 → 409 확인
+- 중복 정산 → 409 확인
+- 전원 성공: rewardPoint = stakePoint + bonus, ROOM_SETTLEMENT_REFUND + ROOM_SETTLEMENT_SUCCESS_BONUS 이력 확인
+- 일부 성공: 성공자 ROOM_SETTLEMENT_REFUND + ROOM_SETTLEMENT_REWARD, 실패자 rewardPoint = 0 확인
+- 전원 실패: systemFee 30% 기록, ROOM_SETTLEMENT_REFUND 환불 이력 확인
+- room.status SETTLED, RoomMember SUCCESS/FAILED 전환 확인
+- Settlement / SettlementMember DB 저장 확인
+
 ## 다음 단계
-- 12단계: Settlement (자동 성공 판정, 포인트 분배/환불, SETTLED)
+- 13단계: ShareCard Data (정산 후 개인/그룹 카드 데이터)
 
 ## 문서 상태
-research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`
+research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`

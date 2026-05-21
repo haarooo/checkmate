@@ -75,4 +75,12 @@ public class RoomMember extends BaseTime {
         this.stakedPoint = stakedPoint;
         this.stakedAt = LocalDateTime.now();
     }
+
+    public void markSuccess() {
+        this.status = RoomMemberStatus.SUCCESS;
+    }
+
+    public void markFailed() {
+        this.status = RoomMemberStatus.FAILED;
+    }
 }

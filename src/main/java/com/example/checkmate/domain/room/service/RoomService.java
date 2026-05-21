@@ -39,6 +39,12 @@ public class RoomService {
 
     @Transactional
     public RoomDetailResponse createRoom(String email, RoomCreateRequest request) {
+        if (request.getDurationDays() < 28) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "미션 기간은 최소 28일 이상이어야 합니다.");
+        }
+        if (request.getStakePoint() < 1000 || request.getStakePoint() > 50000) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "예치금은 1,000P 이상 50,000P 이하여야 합니다.");
+        }
         if (request.getProofFrequencyType() == ProofFrequencyType.WEEKLY) {
             if (request.getDurationDays() % 7 != 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "주 단위 방은 진행 기간이 7의 배수여야 합니다.");

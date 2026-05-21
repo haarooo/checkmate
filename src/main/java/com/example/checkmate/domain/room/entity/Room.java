@@ -114,4 +114,8 @@ public class Room extends BaseTime {
         this.missionStartDate = missionStartDate;
         this.missionEndDate = missionEndDate;
     }
+
+    public void settle() {
+        this.status = RoomStatus.SETTLED;
+    }
 }

@@ -77,6 +77,15 @@ public class PointService {
     }
 
     @Transactional
+    public void addForSettlement(UserEntity user, long amount, Long roomId, LedgerType type, String description) {
+        PointWallet wallet = findWalletByUser(user);
+        wallet.addBalance(amount);
+        PointLedger ledger = PointLedger.createWithRoom(
+                user, roomId, amount, wallet.getBalance(), type, description);
+        pointLedgerRepository.save(ledger);
+    }
+
+    @Transactional
     public void deductForRoomStake(UserEntity user, long stakePoint, Long roomId) {
         PointWallet wallet = findWalletByUser(user);
         if (wallet.getBalance() < stakePoint) {
