@@ -6,6 +6,7 @@ import com.example.checkmate.domain.proof.service.MemberStatsService;
 import com.example.checkmate.domain.proof.service.TodayStatusService;
 import com.example.checkmate.domain.room.dto.JoinRoomRequest;
 import com.example.checkmate.domain.room.dto.RoomCreateRequest;
+import com.example.checkmate.domain.room.dto.RoomDetailEnrichedResponse;
 import com.example.checkmate.domain.room.dto.RoomDetailResponse;
 import com.example.checkmate.domain.room.dto.RoomInviteResponse;
 import com.example.checkmate.domain.room.dto.RoomMemberResponse;
@@ -43,10 +44,10 @@ public class RoomController {
     }
 
     @GetMapping("/{roomId}")
-    public ResponseEntity<RoomDetailResponse> getRoomDetail(
+    public ResponseEntity<RoomDetailEnrichedResponse> getRoomDetail(
             Authentication authentication,
             @PathVariable Long roomId) {
-        return ResponseEntity.ok(roomService.getRoomDetail(authentication.getName(), roomId));
+        return ResponseEntity.ok(roomService.getRoomDetailEnriched(authentication.getName(), roomId));
     }
 
     @GetMapping("/invite/{inviteLinkToken}")

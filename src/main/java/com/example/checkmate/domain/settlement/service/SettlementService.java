@@ -42,6 +42,28 @@ public class SettlementService {
     private final SettlementMemberRepository settlementMemberRepository;
     private final PointService pointService;
 
+    @Transactional(readOnly = true)
+    public SettlementResponse getSettlement(String email, Long roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."));
+
+        UserEntity user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        roomMemberRepository.findByRoomAndUser(room, user)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "방 멤버가 아닙니다."));
+
+        Settlement settlement = settlementRepository.findByRoom(room)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "아직 정산되지 않은 방입니다."));
+
+        List<SettlementMemberResponse> memberResponses = settlementMemberRepository
+                .findAllBySettlementOrderByIdAsc(settlement).stream()
+                .map(SettlementMemberResponse::new)
+                .toList();
+
+        return new SettlementResponse(settlement, memberResponses);
+    }
+
     @Transactional
     public SettlementResponse settle(String email, Long roomId) {
         Room room = roomRepository.findByIdForUpdate(roomId)

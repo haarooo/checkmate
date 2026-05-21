@@ -12,5 +12,7 @@ public class RoomMemberResponse {
     private String nickname;
     private String role;
     private String status;
+    private long stakedPoint;
     private LocalDateTime joinedAt;
+    private LocalDateTime stakedAt;
 }

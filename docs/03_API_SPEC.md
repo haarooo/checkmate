@@ -19,6 +19,11 @@
   - stakePoint 1,000 이상 50,000 이하. 위반 시 400.
 - GET `/api/rooms`
 - GET `/api/rooms/{roomId}`
+  - 방 멤버만 조회 가능. 비멤버 → 403, 없는 방 → 404.
+  - 응답에 ownerId, ownerNickname, myRole, myMemberStatus, createdAt, members 목록 포함.
+  - inviteCode: 6자리 직접 입력 코드.
+  - inviteLinkToken: URL 초대 링크 토큰.
+  - members: userId, nickname, role, status, stakedPoint, stakedAt, joinedAt.
 - GET `/api/rooms/invite/{inviteCode}`
 - POST `/api/rooms/{roomId}/join`
 - POST `/api/rooms/{roomId}/stake`
@@ -50,6 +55,9 @@
   - 이미 Settlement 존재 (settlements.room_id UNIQUE) → 409
   - 성공 시 200, room.status = SETTLED, RoomMember.status = SUCCESS/FAILED
 - GET `/api/rooms/{roomId}/settlement`
+  - 방 멤버만 조회 가능. 비멤버 → 403, 없는 방 → 404.
+  - 정산 미완료 방 → 409.
+  - 응답: settlementId, totalPotPoint, successCount, failedCount, systemFeePoint, systemBonusPoint, settledAt, members.
 
 ## Post-MVP 후보
 - GET `/api/rooms/{roomId}/records`

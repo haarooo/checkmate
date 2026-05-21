@@ -20,9 +20,14 @@
 - SecurityConfig: `/error` permitAll 추가 (ResponseStatusException error dispatch 403 방지)
 - `GET /api/rooms` 내가 속한 방 목록 조회
 - `GET /api/rooms/{roomId}` 방 상세 조회 (비멤버 403, 없는 방 404)
+  - 응답: roomId, title, description, status, inviteCode, inviteLinkToken
+  - ownerId, ownerNickname, myRole, myMemberStatus, createdAt 포함
+  - members 목록 (userId, nickname, role, status, stakedPoint, joinedAt, stakedAt) 포함
 - `GET /api/rooms/invite/{inviteLinkToken}` 초대 링크 미리보기 (비로그인 허용, inviteCode 미포함)
 - `POST /api/rooms/{roomId}/join` 방 참여 (inviteCode body 검증, 불일치 400, 중복/만원/모집중아님 409)
 - `GET /api/rooms/{roomId}/members` 방 멤버 목록 조회 (비멤버 403)
+  - 응답에 stakedPoint, stakedAt 포함
+- `GET /api/rooms/{roomId}/settlement` 정산 결과 조회 (비멤버 403, 정산 전 409)
 - `POST /api/rooms/{roomId}/stake` 예치금 납부 (잔액부족 400, 비멤버 403, 상태충돌 409, 전원 STAKED 시 READY 자동 전환)
 - `POST /api/rooms/{roomId}/start` 방 시작 (OWNER만, READY 상태만, 인원/STAKED 이중 검증,
   IN_PROGRESS 전환, missionStartDate=Asia/Seoul 기준 오늘+1일, missionEndDate=start+durationDays-1일)
@@ -87,13 +92,13 @@
 - `domain/room/` 패키지
   - entity: `Room` (start() / settle() 추가), `RoomStatus`, `RoomMember` (markSuccess() / markFailed() 추가), `RoomMemberRole`, `RoomMemberStatus`
   - repository: `RoomRepository`, `RoomMemberRepository`
-  - service: `RoomService` (createRoom 검증 추가: durationDays >= 28, stakePoint 범위)
-  - controller: `RoomController` (today-status, members/stats 엔드포인트 추가)
-  - dto: `RoomCreateRequest`, `RoomSummaryResponse`, `RoomDetailResponse`, `RoomInviteResponse`, `RoomMemberResponse`, `JoinRoomRequest`
+  - service: `RoomService` (createRoom 검증 추가: durationDays >= 28, stakePoint 범위, getRoomDetailEnriched() 추가, getRoomMembers() stakedPoint/stakedAt 포함)
+  - controller: `RoomController` (GET /{roomId} → RoomDetailEnrichedResponse 반환, today-status, members/stats 엔드포인트 추가)
+  - dto: `RoomCreateRequest`, `RoomSummaryResponse`, `RoomDetailResponse`, `RoomDetailEnrichedResponse`, `RoomInviteResponse`, `RoomMemberResponse` (stakedPoint/stakedAt 추가), `JoinRoomRequest`
 - `domain/settlement/` 패키지
   - entity: `Settlement`, `SettlementMember`, `SettlementMemberResult`
-  - repository: `SettlementRepository`, `SettlementMemberRepository`
-  - service: `SettlementService`
+  - repository: `SettlementRepository`, `SettlementMemberRepository` (findAllBySettlementOrderByIdAsc 추가)
+  - service: `SettlementService` (settle() + getSettlement() 포함)
   - controller: `SettlementController`
   - dto: `SettlementResponse`, `SettlementMemberResponse`
 
@@ -203,9 +208,16 @@
 - room.status SETTLED, RoomMember SUCCESS/FAILED 전환 확인
 - Settlement / SettlementMember DB 저장 확인
 
+## 13단계 Query Support 테스트 완료 내용
+- build 성공, 서버 실행 정상
+- GET /api/rooms/{roomId} → RoomDetailEnrichedResponse 반환 확인 (ownerId, ownerNickname, myRole, myMemberStatus, createdAt, members 목록 포함)
+- GET /api/rooms/{roomId}/members → stakedPoint, stakedAt 포함 확인
+- GET /api/rooms/{roomId}/settlement → 정산 전 409 확인, 정산 후 200 + 결과 확인
+- 비멤버 GET /api/rooms/{roomId}/settlement → 403 확인
+
 ## 다음 단계
-- 13단계: ShareCard Data (정산 후 개인/그룹 카드 데이터)
+- 14단계: ShareCard Data (정산 후 개인/그룹 카드 데이터)
 
 ## 문서 상태
-research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`
+research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`

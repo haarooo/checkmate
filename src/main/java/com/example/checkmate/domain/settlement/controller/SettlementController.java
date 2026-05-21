@@ -25,4 +25,13 @@ public class SettlementController {
     ) {
         return ResponseEntity.ok(settlementService.settle(authentication.getName(), roomId));
     }
+
+    @Operation(summary = "정산 결과 조회", description = "방 멤버만 조회 가능, 정산 전 409")
+    @GetMapping("/{roomId}/settlement")
+    public ResponseEntity<SettlementResponse> getSettlement(
+            Authentication authentication,
+            @PathVariable Long roomId
+    ) {
+        return ResponseEntity.ok(settlementService.getSettlement(authentication.getName(), roomId));
+    }
 }

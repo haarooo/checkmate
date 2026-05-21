@@ -4,6 +4,7 @@ import com.example.checkmate.domain.point.service.PointService;
 import com.example.checkmate.domain.room.dto.JoinRoomRequest;
 import com.example.checkmate.domain.room.entity.ProofFrequencyType;
 import com.example.checkmate.domain.room.dto.RoomCreateRequest;
+import com.example.checkmate.domain.room.dto.RoomDetailEnrichedResponse;
 import com.example.checkmate.domain.room.dto.RoomDetailResponse;
 import com.example.checkmate.domain.room.dto.RoomInviteResponse;
 import com.example.checkmate.domain.room.dto.RoomMemberResponse;
@@ -193,7 +194,9 @@ public class RoomService {
                         m.getUser().getNickname(),
                         m.getRole().name(),
                         m.getStatus().name(),
-                        m.getJoinedAt()
+                        m.getStakedPoint(),
+                        m.getJoinedAt(),
+                        m.getStakedAt()
                 ))
                 .toList();
     }
@@ -258,6 +261,42 @@ public class RoomService {
         room.start(missionStartDate, missionEndDate);
 
         return toDetailResponse(room, currentCount, member.getRole().name());
+    }
+
+    @Transactional(readOnly = true)
+    public RoomDetailEnrichedResponse getRoomDetailEnriched(String email, Long roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."));
+
+        UserEntity user = findUserByEmail(email);
+        RoomMember myMember = roomMemberRepository.findByRoomAndUser(room, user)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "방 멤버가 아닙니다."));
+
+        List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomOrderByJoinedAtAsc(room);
+
+        List<RoomMemberResponse> memberResponses = roomMembers.stream()
+                .map(m -> new RoomMemberResponse(
+                        m.getUser().getId(),
+                        m.getUser().getNickname(),
+                        m.getRole().name(),
+                        m.getStatus().name(),
+                        m.getStakedPoint(),
+                        m.getJoinedAt(),
+                        m.getStakedAt()))
+                .toList();
+
+        return new RoomDetailEnrichedResponse(
+                room.getId(), room.getTitle(), room.getDescription(),
+                room.getStatus().name(), room.getInviteCode(), room.getInviteLinkToken(),
+                room.getOwner().getId(), room.getOwner().getNickname(),
+                myMember.getRole().name(), myMember.getStatus().name(),
+                room.getProofFrequencyType().name(), room.getRequiredProofCount(),
+                room.getDurationDays(), room.getDeadlineTime(),
+                room.getTargetRate(), room.getStakePoint(), room.getMaxMembers(),
+                roomMembers.size(), room.getPotPoint(),
+                room.getMissionStartDate(), room.getMissionEndDate(),
+                room.getCreatedAt(), memberResponses
+        );
     }
 
     private String generateInviteCode() {

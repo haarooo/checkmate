@@ -28,7 +28,12 @@
     - 신규 LedgerType: ROOM_SETTLEMENT_REFUND, ROOM_SETTLEMENT_SUCCESS_BONUS.
     - 신규 Entity: Settlement, SettlementMember.
     - 정산 저장 순서: Settlement → SettlementMember → PointWallet/PointLedger → RoomMember → Room.
-13. ShareCard Data: 정산 후 개인/그룹 카드 데이터.
+13. Query Support:
+    - GET /api/rooms/{roomId} 보강: ownerId, ownerNickname, myMemberStatus, createdAt, members 추가.
+    - GET /api/rooms/{roomId}/settlement 신규: 비멤버 403, 정산 전 409.
+    - RoomDetailEnrichedResponse 신규, RoomMemberResponse stakedPoint/stakedAt 추가.
+    - SettlementMemberRepository: findAllBySettlementOrderByIdAsc 추가.
+14. ShareCard Data: 정산 후 개인/그룹 카드 데이터.
 
 ## Post-MVP 후보
 - 조기 종료: 최대 달성 가능 confirmed 수 계산, 조기 종료 가능 여부 조회, 조기 종료 정산.

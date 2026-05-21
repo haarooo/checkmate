@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface SettlementMemberRepository extends JpaRepository<SettlementMember, Long> {
     List<SettlementMember> findAllBySettlement(Settlement settlement);
+    List<SettlementMember> findAllBySettlementOrderByIdAsc(Settlement settlement);
 }
