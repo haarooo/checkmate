@@ -30,8 +30,9 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
   @override
   void initState() {
     super.initState();
-    final token = widget.initialInviteLinkToken;
-    if (token != null && token.isNotEmpty) {
+    final raw = widget.initialInviteLinkToken;
+    if (raw != null && raw.isNotEmpty) {
+      final token = _extractInviteToken(raw);
       inviteLinkTokenController.text = token;
       WidgetsBinding.instance.addPostFrameCallback((_) => loadPreview());
     }
@@ -46,7 +47,7 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
   }
 
   Future<void> loadPreview() async {
-    final token = inviteLinkTokenController.text.trim();
+    final token = _extractInviteToken(inviteLinkTokenController.text);
     if (token.isEmpty) return;
     setState(() { isPreviewLoading = true; errorMessage = null; });
     try {
@@ -55,6 +56,7 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
       setState(() {
         preview = result;
         roomIdController.text = result.roomId.toString();
+        inviteLinkTokenController.text = token;
       });
     } catch (e) {
       if (!mounted) return;
@@ -62,6 +64,32 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
     } finally {
       if (mounted) setState(() => isPreviewLoading = false);
     }
+  }
+
+  String _extractInviteToken(String input) {
+    var s = input.trim();
+    if (s.isEmpty) return '';
+
+    const hashPattern = '#/invite/';
+    const pathPattern = '/invite/';
+
+    final hashIdx = s.indexOf(hashPattern);
+    if (hashIdx != -1) {
+      s = s.substring(hashIdx + hashPattern.length);
+    } else {
+      final pathIdx = s.indexOf(pathPattern);
+      if (pathIdx != -1) {
+        s = s.substring(pathIdx + pathPattern.length);
+      }
+    }
+
+    s = s.trim();
+    s = s.split('?').first;
+    s = s.split('#').first;
+    s = s.split('&').first;
+    s = s.trim();
+
+    return Uri.decodeComponent(s);
   }
 
   Future<void> joinRoom() async {

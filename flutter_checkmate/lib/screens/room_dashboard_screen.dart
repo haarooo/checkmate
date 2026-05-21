@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -249,12 +250,68 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
   }
 
   Widget _inviteCard(RoomDetailModel? currentRoom) {
-    if (currentRoom?.inviteCode == null && currentRoom?.inviteLinkToken == null) return const SizedBox.shrink();
+    final code = currentRoom?.inviteCode;
+    final token = currentRoom?.inviteLinkToken;
+    if (code == null && token == null) return const SizedBox.shrink();
+
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFBFDBFE))),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
+      ),
       padding: const EdgeInsets.all(14),
-      child: Text('초대코드 ${currentRoom?.inviteCode ?? '-'} · 링크토큰 ${currentRoom?.inviteLinkToken ?? '-'}', style: const TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (code != null)
+            Row(
+              children: [
+                const Text('초대코드', style: TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(code, style: const TextStyle(fontSize: 12, color: Color(0xFF1E40AF), fontWeight: FontWeight.bold)),
+                ),
+                GestureDetector(
+                  onTap: () => _copyText(code, '초대코드가 복사되었습니다.'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(6)),
+                    child: const Text('코드 복사', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          if (code != null && token != null) const SizedBox(height: 10),
+          if (token != null)
+            Row(
+              children: [
+                const Text('초대링크', style: TextStyle(fontSize: 12, color: Color(0xFF2563EB), fontWeight: FontWeight.w600)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('/invite/$token', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Color(0xFF1E40AF))),
+                ),
+                GestureDetector(
+                  onTap: () => _copyText('${Uri.base.origin}/#/invite/$token', '초대링크가 복사되었습니다.'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(6)),
+                    child: const Text('링크 복사', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _copyText(String text, String message) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 
@@ -264,23 +321,65 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
     final alreadyStaked = myMember?.status == 'STAKED';
 
     if (room.status == 'RECRUITING') {
-      if (alreadyStaked) {
-        return SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: null,
-            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('예치금 납부 완료', style: TextStyle(fontWeight: FontWeight.w600)),
-          ),
-        );
-      }
-      return SizedBox(width: double.infinity, child: ElevatedButton(onPressed: isActionLoading ? null : stakeRoom, style: _primaryStyle(), child: Text(isActionLoading ? '처리 중...' : '예치금 납부하기', style: const TextStyle(fontWeight: FontWeight.w600))));
+      final button = alreadyStaked
+          ? SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: null,
+                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                child: const Text('예치금 납부 완료', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            )
+          : SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: isActionLoading ? null : stakeRoom,
+                style: _primaryStyle(),
+                child: Text(isActionLoading ? '처리 중...' : '예치금 납부하기', style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            );
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('미션 시작 후 인증 제출이 가능합니다.', style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+          const SizedBox(height: 10),
+          button,
+        ],
+      );
     }
     if (room.status == 'READY' && room.myRole == 'OWNER') {
-      return SizedBox(width: double.infinity, child: ElevatedButton(onPressed: isActionLoading ? null : startRoom, style: _primaryStyle(), child: Text(isActionLoading ? '처리 중...' : '미션 시작하기', style: const TextStyle(fontWeight: FontWeight.w600))));
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('미션 시작 후 인증 제출이 가능합니다.', style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: isActionLoading ? null : startRoom,
+              style: _primaryStyle(),
+              child: Text(isActionLoading ? '처리 중...' : '미션 시작하기', style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      );
     }
     if (room.status == 'READY') {
-      return SizedBox(width: double.infinity, child: OutlinedButton(onPressed: null, style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('방장이 미션을 시작할 때까지 대기 중', style: TextStyle(fontWeight: FontWeight.w600))));
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('미션 시작 후 인증 제출이 가능합니다.', style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: null,
+              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Text('방장이 미션을 시작할 때까지 대기 중', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      );
     }
     return Row(children: [
       Expanded(child: ElevatedButton.icon(onPressed: () => context.go('/rooms/${widget.roomId}/submit-proof'), icon: const Icon(Icons.upload), label: const Text('인증 올리기', style: TextStyle(fontWeight: FontWeight.w600)), style: _primaryStyle())),

@@ -31,18 +31,18 @@ class RoomSummaryModel {
 
   factory RoomSummaryModel.fromJson(Map<String, dynamic> json) {
     return RoomSummaryModel(
-      id: (json['id'] as num).toInt(),
-      title: json['title'] as String,
-      status: json['status'] as String,
-      maxMembers: (json['maxMembers'] as num).toInt(),
-      stakePoint: (json['stakePoint'] as num).toInt(),
-      currentMemberCount: (json['currentMemberCount'] as num).toInt(),
-      myRole: json['myRole'] as String,
-      proofFrequencyType: json['proofFrequencyType'] as String,
-      requiredProofCount: (json['requiredProofCount'] as num).toInt(),
-      inviteCode: json['inviteCode'] as String?,
-      inviteLinkToken: json['inviteLinkToken'] as String?,
-      description: json['description'] as String?,
+      id: _readInt(json['roomId'] ?? json['id']),
+      title: _readString(json['title']),
+      status: _readString(json['status']),
+      maxMembers: _readInt(json['maxMembers']),
+      stakePoint: _readInt(json['stakePoint']),
+      currentMemberCount: _readInt(json['currentMemberCount']),
+      myRole: _readString(json['myRole']),
+      proofFrequencyType: _readString(json['proofFrequencyType']),
+      requiredProofCount: _readInt(json['requiredProofCount']),
+      inviteCode: _readNullableString(json['inviteCode']),
+      inviteLinkToken: _readNullableString(json['inviteLinkToken']),
+      description: _readNullableString(json['description']),
     );
   }
 }
@@ -90,28 +90,24 @@ class RoomDetailModel {
 
   factory RoomDetailModel.fromJson(Map<String, dynamic> json) {
     return RoomDetailModel(
-      id: (json['id'] as num).toInt(),
-      title: json['title'] as String,
-      description: json['description'] as String?,
-      status: json['status'] as String,
-      inviteCode: json['inviteCode'] as String?,
-      inviteLinkToken: json['inviteLinkToken'] as String?,
-      durationDays: (json['durationDays'] as num).toInt(),
-      deadlineTime: json['deadlineTime'] as String,
-      targetRate: (json['targetRate'] as num).toInt(),
-      stakePoint: (json['stakePoint'] as num).toInt(),
-      maxMembers: (json['maxMembers'] as num).toInt(),
-      potPoint: (json['potPoint'] as num).toInt(),
-      missionStartDate: json['missionStartDate'] == null
-          ? null
-          : DateTime.parse(json['missionStartDate'] as String),
-      missionEndDate: json['missionEndDate'] == null
-          ? null
-          : DateTime.parse(json['missionEndDate'] as String),
-      currentMemberCount: (json['currentMemberCount'] as num).toInt(),
-      myRole: json['myRole'] as String,
-      proofFrequencyType: json['proofFrequencyType'] as String,
-      requiredProofCount: (json['requiredProofCount'] as num).toInt(),
+      id: _readInt(json['roomId'] ?? json['id']),
+      title: _readString(json['title']),
+      description: _readNullableString(json['description']),
+      status: _readString(json['status']),
+      inviteCode: _readNullableString(json['inviteCode']),
+      inviteLinkToken: _readNullableString(json['inviteLinkToken']),
+      durationDays: _readInt(json['durationDays']),
+      deadlineTime: _readString(json['deadlineTime']),
+      targetRate: _readInt(json['targetRate']),
+      stakePoint: _readInt(json['stakePoint']),
+      maxMembers: _readInt(json['maxMembers']),
+      potPoint: _readInt(json['potPoint']),
+      missionStartDate: _readNullableDate(json['missionStartDate']),
+      missionEndDate: _readNullableDate(json['missionEndDate']),
+      currentMemberCount: _readInt(json['currentMemberCount']),
+      myRole: _readString(json['myRole']),
+      proofFrequencyType: _readString(json['proofFrequencyType']),
+      requiredProofCount: _readInt(json['requiredProofCount']),
     );
   }
 }
@@ -123,6 +119,8 @@ class RoomMemberModel {
     required this.role,
     required this.status,
     required this.joinedAt,
+    required this.stakedPoint,
+    this.stakedAt,
   });
 
   final int userId;
@@ -130,14 +128,18 @@ class RoomMemberModel {
   final String role;
   final String status;
   final DateTime joinedAt;
+  final int stakedPoint;
+  final DateTime? stakedAt;
 
   factory RoomMemberModel.fromJson(Map<String, dynamic> json) {
     return RoomMemberModel(
-      userId: (json['userId'] as num).toInt(),
-      nickname: json['nickname'] as String,
-      role: json['role'] as String,
-      status: json['status'] as String,
-      joinedAt: DateTime.parse(json['joinedAt'] as String),
+      userId: _readInt(json['userId']),
+      nickname: _readString(json['nickname']),
+      role: _readString(json['role']),
+      status: _readString(json['status']),
+      joinedAt: _readNullableDate(json['joinedAt']) ?? DateTime(0),
+      stakedPoint: _readInt(json['stakedPoint']),
+      stakedAt: _readNullableDate(json['stakedAt']),
     );
   }
 }
@@ -175,19 +177,52 @@ class RoomInvitePreviewModel {
 
   factory RoomInvitePreviewModel.fromJson(Map<String, dynamic> json) {
     return RoomInvitePreviewModel(
-      roomId: (json['roomId'] as num).toInt(),
-      title: json['title'] as String,
-      description: json['description'] as String?,
-      status: json['status'] as String,
-      durationDays: (json['durationDays'] as num).toInt(),
-      deadlineTime: json['deadlineTime'] as String,
-      targetRate: (json['targetRate'] as num).toInt(),
-      stakePoint: (json['stakePoint'] as num).toInt(),
-      maxMembers: (json['maxMembers'] as num).toInt(),
-      currentMemberCount: (json['currentMemberCount'] as num).toInt(),
-      joinable: json['joinable'] as bool,
-      proofFrequencyType: json['proofFrequencyType'] as String,
-      requiredProofCount: (json['requiredProofCount'] as num).toInt(),
+      roomId: _readInt(json['roomId'] ?? json['id']),
+      title: _readString(json['title']),
+      description: _readNullableString(json['description']),
+      status: _readString(json['status']),
+      durationDays: _readInt(json['durationDays']),
+      deadlineTime: _readString(json['deadlineTime']),
+      targetRate: _readInt(json['targetRate']),
+      stakePoint: _readInt(json['stakePoint']),
+      maxMembers: _readInt(json['maxMembers']),
+      currentMemberCount: _readInt(json['currentMemberCount']),
+      joinable: _readBool(json['joinable']),
+      proofFrequencyType: _readString(json['proofFrequencyType']),
+      requiredProofCount: _readInt(json['requiredProofCount']),
     );
   }
+}
+
+// ─── private helpers ─────────────────────────────────────────────────────────
+
+int _readInt(dynamic value, {int defaultValue = 0}) {
+  if (value == null) return defaultValue;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? defaultValue;
+  return defaultValue;
+}
+
+String _readString(dynamic value, {String defaultValue = ''}) {
+  if (value == null) return defaultValue;
+  return value.toString();
+}
+
+String? _readNullableString(dynamic value) {
+  if (value == null) return null;
+  return value.toString();
+}
+
+DateTime? _readNullableDate(dynamic value) {
+  if (value == null) return null;
+  if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
+  return null;
+}
+
+bool _readBool(dynamic value, {bool defaultValue = false}) {
+  if (value == null) return defaultValue;
+  if (value is bool) return value;
+  if (value is int) return value != 0;
+  if (value is String) return value.toLowerCase() == 'true';
+  return defaultValue;
 }

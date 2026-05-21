@@ -38,6 +38,12 @@
   - deadlineTime 이후 제출 → 409 (Asia/Seoul 기준 nowTime.isAfter(room.deadlineTime), 정각은 허용)
 - `POST /api/proofs/{proofId}/confirm` 인증 확인 (방 멤버만, 본인 확인 금지 403, 중복 확인 409,
   CONFIRMED 전환, confirmedAt 최초 확인 시점 고정, 이미 CONFIRMED면 200 idempotent)
+- `GET /api/rooms/{roomId}/proofs` 인증 피드 조회 (방 멤버만, 비멤버 403, 방 없으면 404)
+  - createdAt DESC 정렬
+  - 응답: proofId, roomId, userId, nickname, content, fileUrl, fileOriginalName, fileContentType,
+    status, proofDate, createdAt, confirmedAt, confirmationCount, requiredConfirmationCount(1),
+    canConfirm, isMine, alreadyConfirmedByMe
+  - canConfirm = !isMine && !alreadyConfirmedByMe
 - `GET /api/rooms/{roomId}/today-status` 현재 기간 인증 현황 조회
   - IN_PROGRESS + 미션 기간 내에만 허용, 비멤버 403, 기간 외 409
   - DAILY: 오늘 기준 / WEEKLY: 이번 주 월~일 기준
@@ -85,10 +91,10 @@
 - `global/config/` 패키지: `WebConfig` (/uploads/** 정적 파일 서빙)
 - `domain/proof/` 패키지
   - entity: `Proof` (confirm() 추가), `ProofStatus`, `ProofConfirmation`
-  - repository: `ProofRepository` (findByIdForUpdate + status count 메서드 추가), `ProofConfirmationRepository`
-  - service: `ProofService` (confirmProof() 추가), `TodayStatusService`, `MemberStatsService`
-  - controller: `ProofController`, `ProofConfirmController`
-  - dto: `ProofSubmitResponse`, `ProofConfirmResponse`, `TodayStatusResponse`, `ProofMemberStatusResponse`, `ProofProgressStatus`, `MemberStatsResponse`, `MemberStatsMemberResponse`, `MemberExpectedResult`
+  - repository: `ProofRepository` (findByIdForUpdate + status count + findByRoomOrderByCreatedAtDesc 추가), `ProofConfirmationRepository` (countByProof 추가)
+  - service: `ProofService` (confirmProof() + getProofFeed() 추가), `TodayStatusService`, `MemberStatsService`
+  - controller: `ProofController` (GET /{roomId}/proofs 추가), `ProofConfirmController`
+  - dto: `ProofSubmitResponse`, `ProofConfirmResponse`, `ProofFeedItemResponse` (신규), `TodayStatusResponse`, `ProofMemberStatusResponse`, `ProofProgressStatus`, `MemberStatsResponse`, `MemberStatsMemberResponse`, `MemberExpectedResult`
 - `domain/room/` 패키지
   - entity: `Room` (start() / settle() 추가), `RoomStatus`, `RoomMember` (markSuccess() / markFailed() 추가), `RoomMemberRole`, `RoomMemberStatus`
   - repository: `RoomRepository`, `RoomMemberRepository`
@@ -215,9 +221,22 @@
 - GET /api/rooms/{roomId}/settlement → 정산 전 409 확인, 정산 후 200 + 결과 확인
 - 비멤버 GET /api/rooms/{roomId}/settlement → 403 확인
 
+## 14단계 Proof Feed 조회 구현 완료 내용 (백엔드)
+- ProofRepository.findByRoomOrderByCreatedAtDesc() 추가
+- ProofConfirmationRepository.countByProof() 추가
+- ProofFeedItemResponse DTO 신규 생성
+- ProofService.getProofFeed() 추가 (readOnly 트랜잭션)
+- ProofController GET /{roomId}/proofs 추가
+- 빌드 확인 필요 (Flutter 연결 전 Swagger 테스트 권장)
+
 ## 다음 단계
-- 14단계: ShareCard Data (정산 후 개인/그룹 카드 데이터)
+- 14단계 Flutter 연결: ProofFeedScreen 실제 API 연결 (목업 → 실 데이터)
+  - proof_model.dart ProofFeedItemModel 추가
+  - proof_service.dart getProofFeed() 추가
+  - proof_feed_screen.dart StatelessWidget → ConsumerStatefulWidget 교체
+  - confirmProof() 버튼 실제 연결
+- 15단계: ShareCard Data (정산 후 개인/그룹 카드 데이터)
 
 ## 문서 상태
-research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`
+research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`

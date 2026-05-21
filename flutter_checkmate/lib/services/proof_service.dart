@@ -44,6 +44,14 @@ class ProofService {
     return ProofSubmitResponseModel.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<List<ProofFeedItemModel>> getProofFeed(int roomId) async {
+    final response = await apiClient.dio.get('/api/rooms/$roomId/proofs');
+    final data = response.data as List;
+    return data
+        .map((item) => ProofFeedItemModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<Map<String, dynamic>> confirmProof(int proofId) async {
     final response = await apiClient.dio.post('/api/proofs/$proofId/confirm');
     return response.data as Map<String, dynamic>;

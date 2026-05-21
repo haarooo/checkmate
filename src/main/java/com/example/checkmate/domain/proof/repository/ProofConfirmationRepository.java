@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ProofConfirmationRepository extends JpaRepository<ProofConfirmation, Long> {
     boolean existsByProofAndConfirmer(Proof proof, UserEntity confirmer);
+    long countByProof(Proof proof);
 }

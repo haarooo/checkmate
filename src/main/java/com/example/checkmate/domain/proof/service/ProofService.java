@@ -1,6 +1,7 @@
 package com.example.checkmate.domain.proof.service;
 
 import com.example.checkmate.domain.proof.dto.ProofConfirmResponse;
+import com.example.checkmate.domain.proof.dto.ProofFeedItemResponse;
 import com.example.checkmate.domain.proof.dto.ProofSubmitResponse;
 import com.example.checkmate.domain.proof.entity.Proof;
 import com.example.checkmate.domain.proof.entity.ProofConfirmation;
@@ -29,6 +30,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -125,6 +127,46 @@ public class ProofService {
                 proof.getFileSize(),
                 proof.getFileContentType()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProofFeedItemResponse> getProofFeed(String email, Long roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "방을 찾을 수 없습니다."));
+
+        UserEntity currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        roomMemberRepository.findByRoomAndUser(room, currentUser)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "방 멤버가 아닙니다."));
+
+        return proofRepository.findByRoomOrderByCreatedAtDesc(room).stream()
+                .map(proof -> {
+                    long confirmationCount = proofConfirmationRepository.countByProof(proof);
+                    boolean isMine = proof.getUser().getId().equals(currentUser.getId());
+                    boolean alreadyConfirmedByMe = !isMine &&
+                            proofConfirmationRepository.existsByProofAndConfirmer(proof, currentUser);
+                    boolean canConfirm = !isMine && !alreadyConfirmedByMe;
+                    return new ProofFeedItemResponse(
+                            proof.getId(),
+                            room.getId(),
+                            proof.getUser().getId(),
+                            proof.getUser().getNickname(),
+                            proof.getContent(),
+                            proof.getFileUrl(),
+                            proof.getFileOriginalName(),
+                            proof.getFileContentType(),
+                            proof.getStatus().name(),
+                            proof.getProofDate(),
+                            proof.getCreatedAt(),
+                            proof.getConfirmedAt(),
+                            confirmationCount,
+                            1L,
+                            canConfirm,
+                            isMine,
+                            alreadyConfirmedByMe
+                    );
+                }).toList();
     }
 
     @Transactional

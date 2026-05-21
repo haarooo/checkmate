@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 public interface ProofRepository extends JpaRepository<Proof, Long> {
@@ -22,4 +23,6 @@ public interface ProofRepository extends JpaRepository<Proof, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Proof p WHERE p.id = :id")
     Optional<Proof> findByIdForUpdate(@Param("id") Long id);
+
+    List<Proof> findByRoomOrderByCreatedAtDesc(Room room);
 }
