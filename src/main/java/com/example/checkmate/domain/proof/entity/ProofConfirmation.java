@@ -15,8 +15,7 @@ import lombok.NoArgsConstructor;
         name = "proof_confirmations",
         uniqueConstraints = @UniqueConstraint(columnNames = {"proof_id", "confirmer_id"})
 )
-public class
-ProofConfirmation extends BaseTime {
+public class ProofConfirmation extends BaseTime {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -4,12 +4,10 @@ package com.example.checkmate.domain.user.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
-@Data@NoArgsConstructor@AllArgsConstructor@Builder
+@Getter
+@NoArgsConstructor@AllArgsConstructor@Builder
 public class UserSignupRequest {
 
     @NotBlank(message = "이메일은 필수입니다.")

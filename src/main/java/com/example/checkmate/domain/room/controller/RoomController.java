@@ -1,6 +1,8 @@
 package com.example.checkmate.domain.room.controller;
 
+import com.example.checkmate.domain.proof.dto.MemberStatsResponse;
 import com.example.checkmate.domain.proof.dto.TodayStatusResponse;
+import com.example.checkmate.domain.proof.service.MemberStatsService;
 import com.example.checkmate.domain.proof.service.TodayStatusService;
 import com.example.checkmate.domain.room.dto.JoinRoomRequest;
 import com.example.checkmate.domain.room.dto.RoomCreateRequest;
@@ -25,6 +27,7 @@ public class RoomController {
 
     private final RoomService roomService;
     private final TodayStatusService todayStatusService;
+    private final MemberStatsService memberStatsService;
 
     @PostMapping
     public ResponseEntity<RoomDetailResponse> createRoom(
@@ -87,5 +90,12 @@ public class RoomController {
             Authentication authentication,
             @PathVariable Long roomId) {
         return ResponseEntity.ok(todayStatusService.getTodayStatus(authentication.getName(), roomId));
+    }
+
+    @GetMapping("/{roomId}/members/stats")
+    public ResponseEntity<MemberStatsResponse> getMemberStats(
+            Authentication authentication,
+            @PathVariable Long roomId) {
+        return ResponseEntity.ok(memberStatsService.getMemberStats(authentication.getName(), roomId));
     }
 }

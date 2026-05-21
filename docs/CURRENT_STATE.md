@@ -37,6 +37,17 @@
   - 멤버별 submittedCount, confirmedCount, status(SUCCESS/WAITING_CONFIRM/NEED_SUBMIT/MISSED)
   - deadlinePassed: DAILY는 매일, WEEKLY는 일요일 deadlineTime 이후
   - myStatus + members 포함
+- `GET /api/rooms/{roomId}/members/stats` 미션 전체 기간 누적 통계 조회
+  - IN_PROGRESS / SETTLED 허용, RECRUITING / READY 409, 비멤버 403
+  - CONFIRMED만 성공 인증으로 계산 (SUBMITTED 제외)
+  - DAILY: totalRequiredProofCount = durationDays * requiredProofCount
+  - WEEKLY: totalRequiredProofCount = (durationDays / 7) * requiredProofCount
+  - requiredSuccessCount = ceil(totalRequiredProofCount * targetRate / 100.0)
+  - expectedResult: SUCCESS / WAITING_CONFIRM / NEED_MORE / FAILED (응답용, DB 상태 아님)
+    - SUCCESS: confirmedCount >= requiredSuccessCount
+    - WAITING_CONFIRM: IN_PROGRESS + confirmedCount < requiredSuccessCount + submittedCount >= requiredSuccessCount
+    - NEED_MORE: IN_PROGRESS + confirmedCount < requiredSuccessCount + submittedCount < requiredSuccessCount
+    - FAILED: SETTLED + confirmedCount < requiredSuccessCount
 - Local File Upload 인프라 구성 (API 없음, 8단계 Proof Submit에서 실제 사용)
   - 허용: 이미지(jpg/jpeg/png/gif/webp) + 동영상(mp4/mov/webm)
   - 저장 위치: 프로젝트 루트 uploads/proofs/, storedName=UUID+확장자
@@ -58,14 +69,14 @@
 - `domain/proof/` 패키지
   - entity: `Proof` (confirm() 추가), `ProofStatus`, `ProofConfirmation`
   - repository: `ProofRepository` (findByIdForUpdate + status count 메서드 추가), `ProofConfirmationRepository`
-  - service: `ProofService` (confirmProof() 추가), `TodayStatusService`
+  - service: `ProofService` (confirmProof() 추가), `TodayStatusService`, `MemberStatsService`
   - controller: `ProofController`, `ProofConfirmController`
-  - dto: `ProofSubmitResponse`, `ProofConfirmResponse`, `TodayStatusResponse`, `ProofMemberStatusResponse`, `ProofProgressStatus`
+  - dto: `ProofSubmitResponse`, `ProofConfirmResponse`, `TodayStatusResponse`, `ProofMemberStatusResponse`, `ProofProgressStatus`, `MemberStatsResponse`, `MemberStatsMemberResponse`, `MemberExpectedResult`
 - `domain/room/` 패키지
   - entity: `Room` (start() 추가), `RoomStatus`, `RoomMember`, `RoomMemberRole`, `RoomMemberStatus`
   - repository: `RoomRepository`, `RoomMemberRepository`
   - service: `RoomService`
-  - controller: `RoomController` (today-status 엔드포인트 추가)
+  - controller: `RoomController` (today-status, members/stats 엔드포인트 추가)
   - dto: `RoomCreateRequest`, `RoomSummaryResponse`, `RoomDetailResponse`, `RoomInviteResponse`, `RoomMemberResponse`, `JoinRoomRequest`
 
 ## inviteLinkToken / inviteCode 설계 확정
@@ -155,9 +166,16 @@
 - DAILY/WEEKLY 정상 조회 → 200 확인
 - submittedCount / confirmedCount / status 값 확인
 
+## 11단계 Member Stats 테스트 완료 내용
+- build 성공, 서버 실행 정상
+- 비멤버 요청 → 403 확인
+- RECRUITING/READY 방 → 409 확인
+- 정상 조회 → 200 확인
+- submittedCount / confirmedCount / proofRate / expectedResult 값 확인
+
 ## 다음 단계
-- 11단계: Member Stats (인증률, 성공 필요 횟수, 예상 결과)
+- 12단계: Settlement (자동 성공 판정, 포인트 분배/환불, SETTLED)
 
 ## 문서 상태
-research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`
+research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`
