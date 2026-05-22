@@ -18,9 +18,10 @@ class JoinRoomScreen extends ConsumerStatefulWidget {
 }
 
 class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
-  final roomIdController = TextEditingController();
   final inviteCodeController = TextEditingController();
   final inviteLinkTokenController = TextEditingController();
+
+  int? previewRoomId;
 
   bool isLoading = false;
   bool isPreviewLoading = false;
@@ -40,7 +41,6 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
 
   @override
   void dispose() {
-    roomIdController.dispose();
     inviteCodeController.dispose();
     inviteLinkTokenController.dispose();
     super.dispose();
@@ -55,7 +55,7 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
       if (!mounted) return;
       setState(() {
         preview = result;
-        roomIdController.text = result.roomId.toString();
+        previewRoomId = result.roomId;
         inviteLinkTokenController.text = token;
       });
     } catch (e) {
@@ -93,10 +93,14 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
   }
 
   Future<void> joinRoom() async {
-    final roomId = int.tryParse(roomIdController.text.trim());
+    final roomId = previewRoomId;
     final inviteCode = inviteCodeController.text.trim();
-    if (roomId == null || inviteCode.isEmpty) {
-      setState(() => errorMessage = '방 ID와 초대 코드를 입력하세요.');
+    if (roomId == null) {
+      setState(() => errorMessage = '초대 링크를 먼저 조회해주세요.');
+      return;
+    }
+    if (inviteCode.isEmpty) {
+      setState(() => errorMessage = '초대 코드를 입력하세요.');
       return;
     }
 
@@ -156,10 +160,6 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  const Text('방 ID', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  _input(roomIdController, '예: 1', keyboardType: TextInputType.number),
                   const SizedBox(height: 16),
                   const Text('초대 코드', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
