@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "531390213636",
+    "project_id": "checkmate-9a60c",
+    "storage_bucket": "checkmate-9a60c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:531390213636:android:9bb48c83c388c494ddcf51",
+        "android_client_info": {
+          "package_name": "com.example.flutter_checkmate"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAKb29M0xIdpE4SzA8ojVA4Z_jc4H9AzJc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

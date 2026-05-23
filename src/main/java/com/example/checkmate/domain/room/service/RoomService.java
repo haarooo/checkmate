@@ -1,5 +1,9 @@
 package com.example.checkmate.domain.room.service;
 
+import com.example.checkmate.domain.activity.entity.ActivityType;
+import com.example.checkmate.domain.activity.service.RoomActivityService;
+import com.example.checkmate.domain.notification.entity.NotificationType;
+import com.example.checkmate.domain.notification.service.NotificationService;
 import com.example.checkmate.domain.point.service.PointService;
 import com.example.checkmate.domain.room.dto.JoinRoomRequest;
 import com.example.checkmate.domain.room.entity.ProofFrequencyType;
@@ -37,6 +41,8 @@ public class RoomService {
     private final RoomMemberRepository roomMemberRepository;
     private final UserRepository userRepository;
     private final PointService pointService;
+    private final RoomActivityService roomActivityService;
+    private final NotificationService notificationService;
 
     @Transactional
     public RoomDetailResponse createRoom(String email, RoomCreateRequest request) {
@@ -178,6 +184,7 @@ public class RoomService {
         }
         RoomMember member = RoomMember.createMember(room, user);
         roomMemberRepository.save(member);
+        roomActivityService.record(room, user, ActivityType.MEMBER_JOINED);
         return toDetailResponse(room, count + 1, member.getRole().name());
     }
 
@@ -220,11 +227,13 @@ public class RoomService {
         pointService.deductForRoomStake(user, room.getStakePoint(), room.getId());
         member.stake(room.getStakePoint());
         room.addPotPoint(room.getStakePoint());
+        roomActivityService.record(room, user, ActivityType.MEMBER_STAKED);
 
         long totalCount = roomMemberRepository.countByRoom(room);
         long stakedCount = roomMemberRepository.countByRoomAndStatus(room, RoomMemberStatus.STAKED);
         if (totalCount == room.getMaxMembers() && stakedCount == room.getMaxMembers()) {
             room.markReady();
+            roomActivityService.record(room, null, ActivityType.ROOM_READY);
         }
 
         return toDetailResponse(room, totalCount, member.getRole().name());
@@ -259,6 +268,11 @@ public class RoomService {
         LocalDate missionStartDate = LocalDate.now(ZoneId.of("Asia/Seoul")).plusDays(1);
         LocalDate missionEndDate = missionStartDate.plusDays(room.getDurationDays() - 1);
         room.start(missionStartDate, missionEndDate);
+        roomActivityService.record(room, user, ActivityType.ROOM_STARTED);
+        List<RoomMember> allMembers = roomMemberRepository.findAllByRoomOrderByJoinedAtAsc(room);
+        for (RoomMember m : allMembers) {
+            notificationService.notify(room, m.getUser(), NotificationType.ROOM_STARTED, null);
+        }
 
         return toDetailResponse(room, currentCount, member.getRole().name());
     }

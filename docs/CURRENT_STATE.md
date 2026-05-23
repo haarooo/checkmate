@@ -69,6 +69,25 @@
     - WAITING_CONFIRM: IN_PROGRESS + confirmedCount < requiredSuccessCount + submittedCount >= requiredSuccessCount
     - NEED_MORE: IN_PROGRESS + confirmedCount < requiredSuccessCount + submittedCount < requiredSuccessCount
     - FAILED: SETTLED + confirmedCount < requiredSuccessCount
+- `GET /api/rooms/{roomId}/activities` 방 활동 피드 조회 (방 멤버만, 비멤버 403, 없는 방 404)
+- `GET /api/notifications` 내 알림 목록 조회 (최신순 50건 고정)
+  - 응답: id, roomId(nullable), type, title, message, read(boolean), readAt(nullable), createdAt
+- `GET /api/notifications/unread-count` 읽지 않은 알림 수 조회 → { unreadCount }
+- `PUT /api/notifications/{notificationId}/read` 단건 읽음 처리 (본인 알림만, 타인 403, 없으면 404, 이미 읽음 200 idempotent)
+- `PUT /api/notifications/read-all` 전체 읽음 처리 (JPQL bulk update, 0건이어도 200)
+- `POST /api/device-tokens` FCM 토큰 등록/갱신 (로그인 필요, 신규/재활성화/재할당 모두 200 OK)
+  - 같은 token + 같은 user → platform 갱신 + active=true (재활성화)
+  - 같은 token + 다른 user → 현재 로그인 사용자로 재할당 (기기 전환 대응)
+  - token blank → 400, invalid platform → 400
+- `DELETE /api/device-tokens` FCM 토큰 비활성화 (request body로 token 전달, 204 No Content)
+  - row 삭제 아닌 active=false 처리 (재로그인 시 재활성화 가능)
+  - 타인 token 비활성화 → 403, 없는 token → 404
+  - createdAt DESC 정렬, 최근 50건 고정 조회
+  - 응답: id, roomId, actorId(nullable), actorNickname(nullable), type, message, createdAt
+  - MEMBER_JOINED / MEMBER_STAKED / ROOM_READY / ROOM_STARTED / PROOF_SUBMITTED / PROOF_CONFIRMED / ROOM_SETTLED 7종 이벤트 자동 기록
+  - 기록 위치: joinRoom / stakeRoom / startRoom / submitProof / confirmProof / settle 성공 직후, 같은 트랜잭션 내
+  - ROOM_READY / ROOM_SETTLED는 actor null (시스템 이벤트)
+  - actor가 필요한 타입에 null 전달 시 IllegalArgumentException (방어적 처리)
 - Local File Upload 인프라 구성 (API 없음, 8단계 Proof Submit에서 실제 사용)
   - 허용: 이미지(jpg/jpeg/png/gif/webp) + 동영상(mp4/mov/webm)
   - 저장 위치: 프로젝트 루트 uploads/proofs/, storedName=UUID+확장자
@@ -104,9 +123,32 @@
 - `domain/settlement/` 패키지
   - entity: `Settlement`, `SettlementMember`, `SettlementMemberResult`
   - repository: `SettlementRepository`, `SettlementMemberRepository` (findAllBySettlementOrderByIdAsc 추가)
-  - service: `SettlementService` (settle() + getSettlement() 포함)
+  - service: `SettlementService` (settle() + getSettlement() 포함, RoomActivityService 주입 추가)
   - controller: `SettlementController`
   - dto: `SettlementResponse`, `SettlementMemberResponse`
+- `domain/activity/` 패키지 (신규)
+  - entity: `ActivityType` (7종 enum), `RoomActivity` (BaseTime 상속, actor nullable, message length=255)
+  - repository: `RoomActivityRepository` (findTop50ByRoomOrderByCreatedAtDesc 추가)
+  - service: `RoomActivityService` (record() + getActivities())
+  - controller: `RoomActivityController` (GET /{roomId}/activities)
+  - dto: `RoomActivityResponse` (static from() 팩토리)
+- `RoomService`: RoomActivityService 주입 추가, joinRoom/stakeRoom/startRoom에 record() 연결
+- `ProofService`: RoomActivityService 주입 추가, submitProof/confirmProof에 record() 연결
+- `domain/notification/` 패키지 (신규)
+  - entity: `NotificationType` (4종 enum: PROOF_SUBMITTED/PROOF_CONFIRMED/ROOM_STARTED/ROOM_SETTLED), `Notification` (BaseTime 상속, receiver NOT NULL, room nullable, readAt nullable, markAsRead() idempotent)
+  - repository: `NotificationRepository` (findTop50ByReceiverOrderByCreatedAtDesc, countByReceiverAndReadAtIsNull, @Modifying markAllAsRead JPQL bulk)
+  - service: `NotificationService` (notify() + getMyNotifications() + getUnreadCount() + markAsRead() + markAllAsRead())
+  - controller: `NotificationController` (GET /, GET /unread-count, PUT /{id}/read, PUT /read-all)
+  - dto: `NotificationResponse` (static from() 팩토리), `UnreadCountResponse`
+- `RoomService`: NotificationService 주입 추가, startRoom에 전 멤버 ROOM_STARTED 알림 연결
+- `ProofService`: NotificationService 주입 추가, submitProof에 제출자 제외 전 멤버 PROOF_SUBMITTED 알림, confirmProof에 인증 작성자 PROOF_CONFIRMED 알림 연결
+- `SettlementService`: NotificationService 주입 추가, settle에 전 멤버 ROOM_SETTLED 알림 연결
+- `domain/device/` 패키지 (신규)
+  - entity: `DevicePlatform` (3종 enum: ANDROID/IOS/WEB), `DeviceToken` (BaseTime 상속, token UNIQUE length=512, active boolean, reactivate()/reassign()/deactivate() 메서드)
+  - repository: `DeviceTokenRepository` (findByToken, findByUserAndToken, findAllByUserAndActiveTrue)
+  - service: `DeviceTokenService` (register() upsert + deactivate() + findActiveTokens() 18-2 예정)
+  - controller: `DeviceTokenController` (POST /, DELETE / request body)
+  - dto: `DeviceTokenRegisterRequest`, `DeviceTokenDeactivateRequest`, `DeviceTokenResponse`
 
 ## inviteLinkToken / inviteCode 설계 확정
 
@@ -237,17 +279,48 @@
   - B FAILED, rewardPoint 0P
   - A 최종 101,000P / B 최종 99,000P
 
+## 18-1단계 DeviceToken DB + API 테스트 완료 내용
+- 빌드 성공, 서버 실행 정상
+- POST /api/device-tokens 신규 token 등록 200 확인
+- 같은 token 재등록 (같은 user) → row 중복 없이 updatedAt 갱신 확인
+- DELETE /api/device-tokens body {token} → 204, DB active=false 확인
+- 비활성화 후 재등록 → active=true 복구 확인
+- 다른 사용자로 같은 token 등록 → user 재할당 200 확인
+- 타인 token 비활성화 → 403 확인
+- 없는 token 비활성화 → 404 확인
+- blank token → 400 확인
+- invalid platform → 400 확인
+
+## 17단계 Notification DB + API 테스트 완료 내용
+- 빌드 성공, 서버 실행 정상
+- 방 시작 → 전 멤버 ROOM_STARTED 알림 생성 확인
+- 인증 제출 → 제출자 제외 전 멤버 PROOF_SUBMITTED 알림 확인
+- 인증 확인 → 인증 작성자 PROOF_CONFIRMED 알림 확인
+- 정산 → 전 멤버 ROOM_SETTLED 알림 확인
+- GET /api/notifications → 최신순 목록 200 확인
+- GET /api/notifications/unread-count → unreadCount 값 확인
+- PUT /api/notifications/{id}/read → read true, readAt 설정 확인, 이미 읽음 200 idempotent 확인
+- PUT /api/notifications/read-all → 전체 읽음 처리 200 확인
+- 타인 알림 읽음 처리 → 403 확인
+- 없는 알림 → 404 확인
+
+## 16단계 Room Activity Feed 테스트 완료 내용
+- 빌드 성공, 서버 실행 정상
+- B 방 참여 → GET activities → MEMBER_JOINED 확인
+- A/B 예치 → MEMBER_STAKED 확인, 전원 예치 완료 → ROOM_READY 확인
+- 방 시작 → ROOM_STARTED 확인
+- 인증 제출 → PROOF_SUBMITTED 확인
+- 인증 확인 → PROOF_CONFIRMED 확인
+- 정산 → ROOM_SETTLED 확인
+- 비멤버 GET activities → 403 확인
+- 없는 방 GET activities → 404 확인
+
 ## 다음 단계
-- 15단계: Second Phase Planning
-  - `docs/plans/15_second_phase_plan.md` 생성
-  - 2차 기능 범위: RoomActivity, Notification+FCM, WebSocket/STOMP Chat, Mission Progress Board, Settlement Share Card
-- 16단계: Room Activity Feed
-- 17단계: Notification DB + API
-- 18단계: DeviceToken + FCM
+- 18-2단계: Firebase Admin SDK + FcmService (다음 작업 — 18-1 DeviceToken DB + API 완료)
 - 19단계: Room Chat WebSocket/STOMP
 - 20단계: Mission Progress Board
 - 21단계: Settlement Share Card
 
 ## 문서 상태
-research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`, `15_second_phase`
+research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`, `16_room_activity`, `17_notification`, `18_1_device_token`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`, `15_second_phase`, `16_room_activity`, `17_notification`, `18_1_device_token`

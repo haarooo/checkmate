@@ -1,6 +1,6 @@
 # FRONTEND_CURRENT_STATE.md
 
-마지막 업데이트: 2026-05-23
+마지막 업데이트: 2026-05-24
 
 ---
 
@@ -27,6 +27,8 @@
 | 이미지 업로드 | image_picker |
 | Multipart 지원 | http_parser |
 | 날짜/포맷 | intl |
+| Firebase Core | firebase_core |
+| Push 알림 | firebase_messaging |
 
 ---
 
@@ -232,6 +234,48 @@ Flutter `baseUrl`은 실행 환경별로 다르다.
 - 백엔드 API를 무작정 바꾸지 말 것
 - `id`를 `roomId`로 일괄 변경하는 대규모 수정 금지
 - 코드 수정 전 반드시 미리보기 제시
+
+---
+
+## 12. Firebase / FCM 프론트 초기 설정 완료
+
+### 완료 내용
+- Firebase CLI 로그인 완료
+- FlutterFire CLI 설치 완료
+- `flutterfire configure` 실행 → `lib/firebase_options.dart` 자동 생성
+- Firebase Android / Web 초기화 성공 확인
+- Android 에뮬레이터에서 FCM 토큰 발급 확인
+- FCM 권한: `AuthorizationStatus.authorized` 확인
+
+### 추가 패키지 (`pubspec.yaml`)
+| 패키지 | 용도 |
+|--------|------|
+| `firebase_core` | Firebase 앱 초기화 |
+| `firebase_messaging` | FCM 토큰 발급 / 푸시 수신 |
+
+### 생성 / 추가 파일
+| 파일 | 설명 |
+|------|------|
+| `lib/firebase_options.dart` | FlutterFire CLI 자동 생성, 플랫폼별 Firebase 설정 |
+| `android/app/google-services.json` | Android Firebase 설정 파일 |
+
+### 수정 파일
+| 파일 | 변경 내용 |
+|------|----------|
+| `pubspec.yaml` | `firebase_core`, `firebase_messaging` 의존성 추가 |
+| `lib/main.dart` | `Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)` 추가 |
+| `android/settings.gradle.kts` | `com.google.gms.google-services:4.4.4` apply false 추가 |
+| `android/app/build.gradle.kts` | `com.google.gms.google-services` plugin 적용 |
+| `android/app/src/main/AndroidManifest.xml` | `POST_NOTIFICATIONS` 권한 추가 |
+
+### 확인 결과
+- Web: `Firebase initialized on Web` 콘솔 로그 확인
+- Android 에뮬레이터: FCM TOKEN 발급 확인
+
+### 다음 백엔드 작업 (18단계)
+- DeviceToken Entity / API (`POST /api/device-tokens`, `DELETE /api/device-tokens`)
+- Firebase Admin SDK 서버 설정
+- Notification 저장 후 FCM 발송 이벤트 연결
 
 ---
 

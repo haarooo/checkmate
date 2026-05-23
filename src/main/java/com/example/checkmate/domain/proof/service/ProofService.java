@@ -1,5 +1,9 @@
 package com.example.checkmate.domain.proof.service;
 
+import com.example.checkmate.domain.activity.entity.ActivityType;
+import com.example.checkmate.domain.activity.service.RoomActivityService;
+import com.example.checkmate.domain.notification.entity.NotificationType;
+import com.example.checkmate.domain.notification.service.NotificationService;
 import com.example.checkmate.domain.proof.dto.ProofConfirmResponse;
 import com.example.checkmate.domain.proof.dto.ProofFeedItemResponse;
 import com.example.checkmate.domain.proof.dto.ProofSubmitResponse;
@@ -42,6 +46,8 @@ public class ProofService {
     private final RoomMemberRepository roomMemberRepository;
     private final UserRepository userRepository;
     private final LocalFileStorageService fileStorageService;
+    private final RoomActivityService roomActivityService;
+    private final NotificationService notificationService;
 
     @Transactional
     public ProofSubmitResponse submitProof(String email, Long roomId, String content, MultipartFile file) {
@@ -112,6 +118,13 @@ public class ProofService {
                 fileUrl, fileOriginalName, fileStoredName, fileSize, fileContentType
         );
         proofRepository.save(proof);
+        roomActivityService.record(room, user, ActivityType.PROOF_SUBMITTED);
+        List<RoomMember> roomMembers = roomMemberRepository.findAllByRoomOrderByJoinedAtAsc(room);
+        for (RoomMember m : roomMembers) {
+            if (!m.getUser().getId().equals(user.getId())) {
+                notificationService.notify(room, m.getUser(), NotificationType.PROOF_SUBMITTED, user);
+            }
+        }
 
         return new ProofSubmitResponse(
                 proof.getId(),
@@ -193,6 +206,8 @@ public class ProofService {
         }
 
         proofConfirmationRepository.save(ProofConfirmation.create(proof, proof.getRoom(), user));
+        roomActivityService.record(proof.getRoom(), user, ActivityType.PROOF_CONFIRMED);
+        notificationService.notify(proof.getRoom(), proof.getUser(), NotificationType.PROOF_CONFIRMED, user);
 
         return new ProofConfirmResponse(
                 proof.getId(),

@@ -1,5 +1,9 @@
 package com.example.checkmate.domain.settlement.service;
 
+import com.example.checkmate.domain.activity.entity.ActivityType;
+import com.example.checkmate.domain.activity.service.RoomActivityService;
+import com.example.checkmate.domain.notification.entity.NotificationType;
+import com.example.checkmate.domain.notification.service.NotificationService;
 import com.example.checkmate.domain.point.entity.LedgerType;
 import com.example.checkmate.domain.point.service.PointService;
 import com.example.checkmate.domain.proof.entity.ProofStatus;
@@ -41,6 +45,8 @@ public class SettlementService {
     private final SettlementRepository settlementRepository;
     private final SettlementMemberRepository settlementMemberRepository;
     private final PointService pointService;
+    private final RoomActivityService roomActivityService;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public SettlementResponse getSettlement(String email, Long roomId) {
@@ -205,6 +211,10 @@ public class SettlementService {
             memberResponses.add(new SettlementMemberResponse(sm));
         }
         room.settle();
+        roomActivityService.record(room, null, ActivityType.ROOM_SETTLED);
+        for (RoomMember m : members) {
+            notificationService.notify(room, m.getUser(), NotificationType.ROOM_SETTLED, null);
+        }
         return new SettlementResponse(settlement, memberResponses);
     }
 }
