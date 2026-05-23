@@ -227,16 +227,27 @@
 - ProofFeedItemResponse DTO 신규 생성
 - ProofService.getProofFeed() 추가 (readOnly 트랜잭션)
 - ProofController GET /{roomId}/proofs 추가
-- 빌드 확인 필요 (Flutter 연결 전 Swagger 테스트 권장)
+- 빌드 성공 및 Flutter ProofFeedScreen 실제 API 연결 완료
+
+## MVP 완료 검증
+- User A / User B 전체 플로우 스모크 테스트 완료
+- 방 생성 → 초대 → 참여 → 예치 → 시작 → 인증 제출 → 인증 확인 → 정산 → 포인트 원장 확인 완료
+- 일부 성공 정산 케이스 검증 완료
+  - A SUCCESS, rewardPoint 2,000P
+  - B FAILED, rewardPoint 0P
+  - A 최종 101,000P / B 최종 99,000P
 
 ## 다음 단계
-- 14단계 Flutter 연결: ProofFeedScreen 실제 API 연결 (목업 → 실 데이터)
-  - proof_model.dart ProofFeedItemModel 추가
-  - proof_service.dart getProofFeed() 추가
-  - proof_feed_screen.dart StatelessWidget → ConsumerStatefulWidget 교체
-  - confirmProof() 버튼 실제 연결
-- 15단계: ShareCard Data (정산 후 개인/그룹 카드 데이터)
+- 15단계: Second Phase Planning
+  - `docs/plans/15_second_phase_plan.md` 생성
+  - 2차 기능 범위: RoomActivity, Notification+FCM, WebSocket/STOMP Chat, Mission Progress Board, Settlement Share Card
+- 16단계: Room Activity Feed
+- 17단계: Notification DB + API
+- 18단계: DeviceToken + FCM
+- 19단계: Room Chat WebSocket/STOMP
+- 20단계: Mission Progress Board
+- 21단계: Settlement Share Card
 
 ## 문서 상태
 research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`, `15_second_phase`

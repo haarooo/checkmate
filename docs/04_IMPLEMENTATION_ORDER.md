@@ -33,7 +33,50 @@
     - GET /api/rooms/{roomId}/settlement 신규: 비멤버 403, 정산 전 409.
     - RoomDetailEnrichedResponse 신규, RoomMemberResponse stakedPoint/stakedAt 추가.
     - SettlementMemberRepository: findAllBySettlementOrderByIdAsc 추가.
-14. ShareCard Data: 정산 후 개인/그룹 카드 데이터.
+14. Proof Feed:
+    - GET `/api/rooms/{roomId}/proofs`.
+    - ProofFeedItemResponse.
+    - Flutter ProofFeedScreen 실제 API 연결.
+    - confirmProof 버튼 실제 연결.
+15. Second Phase Planning:
+    - MVP 완료 상태 정리.
+    - 2차 기능 전체 방향 정리.
+    - 실시간성, 알림, 시각화, 채팅, 공유 카드 설계.
+16. Room Activity Feed:
+    - RoomActivity 엔티티.
+    - ActivityType enum.
+    - 방 참여/예치/시작/인증 제출/인증 확인/정산 이벤트 기록.
+    - GET `/api/rooms/{roomId}/activities`.
+17. Notification DB + Notification API:
+    - Notification 엔티티.
+    - 알림함 조회.
+    - 미확인 개수 조회.
+    - 단건 읽음.
+    - 전체 읽음.
+18. DeviceToken + FCM:
+    - DeviceToken 엔티티.
+    - FCM token 등록/비활성화.
+    - 이벤트 발생 시 Notification 저장 + FCM 발송.
+    - FCM 실패가 원본 트랜잭션 실패로 이어지지 않게 처리.
+19. Room Chat WebSocket/STOMP:
+    - RoomMessage 엔티티.
+    - GET `/api/rooms/{roomId}/messages`.
+    - `/ws` 연결.
+    - `/topic/rooms/{roomId}/messages` 구독.
+    - `/app/rooms/{roomId}/messages` 전송.
+    - 방 멤버 권한 검증.
+20. Mission Progress Board:
+    - 기존 today-status / members-stats 활용.
+    - 방 전체 진행률.
+    - 목표 완료/확인 대기/제출 필요 인원 표시.
+    - 멤버별 진행 상태 시각화.
+21. Settlement Share Card:
+    - 개인 결과 카드.
+    - 그룹 결과 카드.
+    - Flutter 카드 UI.
+    - 추후 이미지 저장/공유 확장.
 
 ## Post-MVP 후보
 - 조기 종료: 최대 달성 가능 confirmed 수 계산, 조기 종료 가능 여부 조회, 조기 종료 정산.
+- 채팅 메시지 삭제/수정, 채팅 이미지 업로드, 채팅 읽음 처리.
+- 정산 결과 이미지 저장/외부 SNS 직접 공유.

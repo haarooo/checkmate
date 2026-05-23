@@ -129,6 +129,10 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
                     else if (errorMessage != null)
                       _errorBox(errorMessage!)
                     else ...[
+                      _missionSummaryCard(currentRoom),
+                      const SizedBox(height: 16),
+                      _ruleCard(),
+                      const SizedBox(height: 16),
                       _todayStatusCard(currentRoom),
                       const SizedBox(height: 16),
                       _myStatusCard(),
@@ -154,8 +158,135 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
     );
   }
 
+  // ─── 미션 요약 카드 ────────────────────────────────────────────
+
+  Widget _missionSummaryCard(RoomDetailModel? r) {
+    if (r == null) return const SizedBox.shrink();
+    final type = r.proofFrequencyType;
+    final period = (r.missionStartDate != null && r.missionEndDate != null)
+        ? '${_formatDate(r.missionStartDate)} ~ ${_formatDate(r.missionEndDate)}'
+        : '미션 시작 전';
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF3F4F6)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('미션 요약',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF111827))),
+          const SizedBox(height: 16),
+          _summaryRow(Icons.calendar_today_outlined, '진행 기간', period),
+          const SizedBox(height: 10),
+          _summaryRow(Icons.track_changes, '인증 방식',
+              UiMappers.frequencyGoalLabel(type, r.requiredProofCount)),
+          const SizedBox(height: 10),
+          _summaryRow(Icons.check_circle_outline, '성공 기준',
+              UiMappers.successRuleLabel(r.targetRate)),
+          const SizedBox(height: 10),
+          _summaryRow(Icons.account_balance_wallet_outlined, '내 예치금',
+              UiMappers.stakePointLabel(r.stakePoint)),
+          const SizedBox(height: 10),
+          _summaryRow(Icons.savings_outlined, '총 예치금',
+              UiMappers.potPointLabel(r.potPoint)),
+          const SizedBox(height: 10),
+          _summaryRow(Icons.people_outline, '참여 인원',
+              '${r.currentMemberCount}/${r.maxMembers}명'),
+          const SizedBox(height: 10),
+          _summaryRow(Icons.access_time, '인증 마감',
+              UiMappers.deadlineLabel(type, r.deadlineTime)),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: const Color(0xFF6B7280)),
+        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime? dt) {
+    if (dt == null) return '-';
+    return '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')}';
+  }
+
+  // ─── 이 방의 룰 카드 ───────────────────────────────────────────
+
+  Widget _ruleCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: Color(0xFF3B82F6)),
+              SizedBox(width: 8),
+              Text('이 방의 룰',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...[
+            UiMappers.confirmNoticeText,
+            '확인 완료된 인증만 성공 기준에 반영돼요.',
+            '성공하면 예치금을 돌려받아요.',
+            UiMappers.penaltyNoticeText,
+            UiMappers.bonusNoticeText,
+          ].map(
+            (text) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('• ', style: TextStyle(fontSize: 12, color: Color(0xFF3B82F6))),
+                  Expanded(
+                    child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF374151))),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(UiMappers.virtualPointNoticeText,
+              style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+        ],
+      ),
+    );
+  }
+
+  // ─── 오늘/이번 주 인증 현황 카드 ─────────────────────────────────
+
   Widget _todayStatusCard(RoomDetailModel? currentRoom) {
     final required = currentRoom?.requiredProofCount ?? 0;
+    final type = currentRoom?.proofFrequencyType ?? 'DAILY';
+    final title = UiMappers.currentPeriodTitle(type);
+    final remainLabel = UiMappers.remainingSubmitLabel(type);
+    final deadlineText = UiMappers.deadlineLabel(type, currentRoom?.deadlineTime ?? '23:00');
 
     if (todayStatus == null) {
       return Container(
@@ -168,22 +299,22 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
           Row(children: [
             const Icon(Icons.check_circle_outline, color: Colors.white),
             const SizedBox(width: 8),
-            const Text('오늘 인증 현황', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             const Spacer(),
             Icon(Icons.access_time, color: Colors.blue.shade100, size: 18),
             const SizedBox(width: 4),
-            Text('${currentRoom?.deadlineTime ?? '23:00'} 마감', style: TextStyle(color: Colors.blue.shade100, fontSize: 14)),
+            Text(deadlineText, style: TextStyle(color: Colors.blue.shade100, fontSize: 13)),
           ]),
           const SizedBox(height: 20),
           Row(children: [
-            Expanded(child: _whiteStat('0', '제출 완료')),
+            Expanded(child: _whiteStat('0', '제출')),
             const SizedBox(width: 12),
-            Expanded(child: _whiteStat('0', '확인 완료')),
+            Expanded(child: _whiteStat('0', '확인')),
             const SizedBox(width: 12),
-            Expanded(child: _whiteStat('$required', '남은 인증')),
+            Expanded(child: _whiteStat('$required', '남은 제출')),
           ]),
           const SizedBox(height: 16),
-          Text('미션 시작 전이거나 오늘 인증 기간이 아닙니다.', style: TextStyle(color: Colors.blue.shade100, fontSize: 14)),
+          Text('미션 기간이 시작되면 제출 현황이 표시됩니다.', style: TextStyle(color: Colors.blue.shade100, fontSize: 13)),
         ]),
       );
     }
@@ -192,14 +323,32 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
     final submitted = _asInt(todayStatus?['myStatus']?['submittedCount']) ?? 0;
     final remaining = (required - confirmed).clamp(0, required);
     return Container(
-      decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF2563EB)]), borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF2563EB)]),
+          borderRadius: BorderRadius.circular(16)),
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [const Icon(Icons.check_circle_outline, color: Colors.white), const SizedBox(width: 8), const Text('오늘 인증 현황', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), const Spacer(), Icon(Icons.access_time, color: Colors.blue.shade100, size: 18), const SizedBox(width: 4), Text('${currentRoom?.deadlineTime ?? '23:00'} 마감', style: TextStyle(color: Colors.blue.shade100, fontSize: 14))]),
+        Row(children: [
+          const Icon(Icons.check_circle_outline, color: Colors.white),
+          const SizedBox(width: 8),
+          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          const Spacer(),
+          Icon(Icons.access_time, color: Colors.blue.shade100, size: 18),
+          const SizedBox(width: 4),
+          Text(deadlineText, style: TextStyle(color: Colors.blue.shade100, fontSize: 13)),
+        ]),
         const SizedBox(height: 20),
-        Row(children: [Expanded(child: _whiteStat('$submitted', '제출 완료')), const SizedBox(width: 12), Expanded(child: _whiteStat('$confirmed', '확인 완료')), const SizedBox(width: 12), Expanded(child: _whiteStat('$remaining', '남은 인증'))]),
-        const SizedBox(height: 16),
-        Text(remaining == 0 ? '오늘 목표를 완료했어요!' : '목표까지 $remaining개 남았어요!', style: TextStyle(color: Colors.blue.shade100, fontSize: 14)),
+        Row(children: [
+          Expanded(child: _whiteStat('$submitted', '제출')),
+          const SizedBox(width: 12),
+          Expanded(child: _whiteStat('$confirmed', '확인')),
+          const SizedBox(width: 12),
+          Expanded(child: _whiteStat('$remaining', '남은 제출')),
+        ]),
+        const SizedBox(height: 12),
+        Text('확인 완료된 인증만 목표 달성에 반영돼요.', style: TextStyle(color: Colors.blue.shade100, fontSize: 12)),
+        const SizedBox(height: 8),
+        Text(remaining == 0 ? '목표를 완료했어요!' : '목표까지 $remaining개 남았어요!', style: TextStyle(color: Colors.blue.shade100, fontSize: 14)),
       ]),
     );
   }
@@ -207,8 +356,14 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
   Widget _whiteStat(String value, String label) => Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-        child: Column(children: [Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text(label, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12))]),
+        child: Column(children: [
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12)),
+        ]),
       );
+
+  // ─── 내 인증 현황 카드 ─────────────────────────────────────────
 
   Widget _myStatusCard() {
     final myStatus = todayStatus?['myStatus'];
@@ -217,37 +372,99 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
     final remainingSubmit = _asInt(myStatus?['remainingSubmitCount']) ?? (room?.requiredProofCount ?? 0);
     final remainingConfirm = _asInt(myStatus?['remainingConfirmCount']) ?? (room?.requiredProofCount ?? 0);
     final status = (myStatus?['progressStatus'] ?? 'NEED_SUBMIT').toString();
+    final description = UiMappers.proofProgressDescription(status);
+
     return Container(
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF3F4F6))),
       padding: const EdgeInsets.all(20),
-      child: Column(children: [
-        Row(children: [const Text('내 인증 현황', style: TextStyle(fontWeight: FontWeight.bold)), const Spacer(), Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: UiMappers.proofProgressColor(status), borderRadius: BorderRadius.circular(12)), child: Text(UiMappers.proofProgressLabel(status), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)))]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('내 인증 현황', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: UiMappers.proofProgressColor(status), borderRadius: BorderRadius.circular(12)),
+            child: Text(UiMappers.proofProgressLabel(status), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+        ]),
+        if (description.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(description, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+        ],
         const SizedBox(height: 16),
-        Row(children: [Expanded(child: _buildStatBox('$submitted', '제출 완료', const Color(0xFF3B82F6))), const SizedBox(width: 12), Expanded(child: _buildStatBox('$confirmed', '확인 완료', const Color(0xFF22C55E)))]),
+        Row(children: [
+          Expanded(child: _buildStatBox('$submitted', '제출 완료', const Color(0xFF3B82F6))),
+          const SizedBox(width: 12),
+          Expanded(child: _buildStatBox('$confirmed', '확인 완료', const Color(0xFF22C55E))),
+        ]),
         const SizedBox(height: 12),
-        Row(children: [Expanded(child: _buildStatBox('$remainingSubmit', '남은 제출', const Color(0xFFF97316))), const SizedBox(width: 12), Expanded(child: _buildStatBox('$remainingConfirm', '남은 확인', const Color(0xFF9CA3AF)))]),
+        Row(children: [
+          Expanded(child: _buildStatBox('$remainingSubmit', '남은 제출', const Color(0xFFF97316))),
+          const SizedBox(width: 12),
+          Expanded(child: _buildStatBox('$remainingConfirm', '남은 확인', const Color(0xFF9CA3AF))),
+        ]),
       ]),
     );
   }
 
+  // ─── 멤버별 현황 카드 ──────────────────────────────────────────
+
   Widget _memberPreviewCard() {
-    final topMembers = members.take(3).toList();
+    final todayMembers = todayStatus?['members'] as List<dynamic>?;
+
     return Container(
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF3F4F6))),
       padding: const EdgeInsets.all(20),
       child: Column(children: [
-        Row(children: [const Text('멤버별 현황', style: TextStyle(fontWeight: FontWeight.bold)), const Spacer(), GestureDetector(onTap: () => context.go('/rooms/${widget.roomId}/members'), child: const Text('전체보기', style: TextStyle(fontSize: 14, color: Color(0xFF3B82F6), fontWeight: FontWeight.w600)))]),
+        Row(children: [
+          const Text('멤버별 현황', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Spacer(),
+          GestureDetector(
+            onTap: () => context.go('/rooms/${widget.roomId}/members'),
+            child: const Text('전체보기', style: TextStyle(fontSize: 14, color: Color(0xFF3B82F6), fontWeight: FontWeight.w600)),
+          ),
+        ]),
         const SizedBox(height: 16),
-        if (topMembers.isEmpty)
-          _buildMemberCard('김', 'owner_124909', '방장', '제출 2 · 확인 1', '확인대기', const Color(0xFF3B82F6))
+        if (todayMembers != null && todayMembers.isNotEmpty)
+          ...todayMembers.take(3).map((member) {
+            final m = member as Map<String, dynamic>;
+            final nickname = m['nickname']?.toString() ?? '알 수 없음';
+            final submitted = _asInt(m['submittedCount']) ?? 0;
+            final confirmed = _asInt(m['confirmedCount']) ?? 0;
+            final statusStr = (m['progressStatus'] ?? m['expectedResult'] ?? m['status'] ?? 'NEED_SUBMIT').toString();
+            final role = m['role']?.toString();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildMemberCard(
+                UiMappers.initialFromName(nickname),
+                nickname,
+                role == 'OWNER' ? '방장' : null,
+                '제출 $submitted · 확인 $confirmed',
+                UiMappers.proofProgressLabel(statusStr),
+                UiMappers.proofProgressColor(statusStr),
+              ),
+            );
+          })
+        else if (members.isEmpty)
+          const Text('아직 멤버 정보가 없습니다.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)))
         else
-          ...topMembers.map((m) => Padding(
+          ...members.take(3).map((m) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _buildMemberCard(UiMappers.initialFromName(m.nickname), m.nickname, m.role == 'OWNER' ? '방장' : null, UiMappers.memberStatusLabel(m.status), m.status == 'STAKED' ? '예치완료' : '참여중', m.status == 'STAKED' ? const Color(0xFF22C55E) : const Color(0xFF3B82F6)),
+                child: _buildMemberCard(
+                  UiMappers.initialFromName(m.nickname),
+                  m.nickname,
+                  m.role == 'OWNER' ? '방장' : null,
+                  '미션 시작 전 멤버',
+                  UiMappers.memberStatusLabel(m.status),
+                  m.status == 'STAKED' ? const Color(0xFF22C55E) : const Color(0xFF3B82F6),
+                ),
               )),
       ]),
     );
   }
+
+  // ─── 초대 카드 (기존 유지) ────────────────────────────────────
 
   Widget _inviteCard(RoomDetailModel? currentRoom) {
     final code = currentRoom?.inviteCode;
@@ -314,6 +531,8 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
       SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
+
+  // ─── 하단 액션 (기존 유지) ────────────────────────────────────
 
   Widget _bottomActions(RoomDetailModel room) {
     final currentUserId = ref.read(authControllerProvider).currentUser?.id;
@@ -390,7 +609,15 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
 
   ButtonStyle _primaryStyle() => ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3B82F6), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0);
 
-  Widget _buildStatBox(String value, String label, Color color) => Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)), child: Column(children: [Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color)), const SizedBox(height: 4), Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)))]));
+  Widget _buildStatBox(String value, String label, Color color) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)),
+        child: Column(children: [
+          Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: color)),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+        ]),
+      );
 
   Widget _buildMemberCard(
     String initial,
@@ -405,18 +632,9 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
         Container(
           width: 40,
           height: 40,
-          decoration: const BoxDecoration(
-            color: Color(0xFF3B82F6),
-            shape: BoxShape.circle,
-          ),
+          decoration: const BoxDecoration(color: Color(0xFF3B82F6), shape: BoxShape.circle),
           child: Center(
-            child: Text(
-              initial,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: Text(initial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ),
         const SizedBox(width: 12),
@@ -427,69 +645,43 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
               Row(
                 children: [
                   Flexible(
-                    child: Text(
-                      name,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: Text(name,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   ),
                   if (role != null) ...[
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        role,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: const Color(0xFF3B82F6), borderRadius: BorderRadius.circular(4)),
+                      child: Text(role, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                stats,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF6B7280),
-                ),
-              ),
+              Text(stats, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
             ],
           ),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: statusColor,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            status,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(12)),
+          child: Text(status, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
         ),
       ],
     );
   }
 
-  Widget _errorBox(String message) => Container(width: double.infinity, padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFFECACA))), child: Text(message, style: const TextStyle(color: Color(0xFFEF4444))));
+  Widget _errorBox(String message) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: const Color(0xFFFEF2F2),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFFECACA))),
+        child: Text(message, style: const TextStyle(color: Color(0xFFEF4444))),
+      );
 
   RoomMemberModel? _findMemberByUserId(int userId) {
     for (final member in members) {

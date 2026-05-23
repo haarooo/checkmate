@@ -82,6 +82,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _pointCard(),
+                        const SizedBox(height: 16),
+                        _appDescriptionCard(),
                         const SizedBox(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -97,13 +99,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 child: _buildRoomCard(
                                   title: index == 0 ? '여름 전까지 4주 운동방' : index == 1 ? '아침 러닝 챌린지' : '식단 관리 1달 챌린지',
                                   description: index == 0 ? '친구들과 함께 운동 습관 만들기' : index == 1 ? '매일 아침 5km 달리기' : '건강한 식습관 만들기',
-                                  status: index == 0 ? '진행중' : index == 1 ? '대기중' : '모집중',
+                                  status: index == 0 ? '진행중' : index == 1 ? '시작대기' : '모집중',
                                   statusColor: index == 0 ? const Color(0xFF22C55E) : index == 1 ? const Color(0xFF3B82F6) : const Color(0xFFF97316),
-                                  members: index == 0 ? '3/5명' : index == 1 ? '4/4명' : '2/6명',
-                                  points: index == 0 ? '10,000P' : index == 1 ? '20,000P' : '15,000P',
-                                  type: index == 1 ? 'WEEKLY' : 'DAILY',
-                                  goal: index == 1 ? '주 5회' : index == 0 ? '하루 2회' : '하루 3회',
-                                  progress: index == 0 ? 0.5 : null,
+                                  members: index == 0 ? '참여 인원 3/5명' : index == 1 ? '참여 인원 4/4명' : '참여 인원 2/6명',
+                                  points: index == 0 ? '내 예치금 10,000P' : index == 1 ? '내 예치금 20,000P' : '내 예치금 15,000P',
+                                  type: index == 1 ? '주 단위' : '일 단위',
+                                  goal: index == 1 ? '매주 5회 인증' : index == 0 ? '하루 2회 인증' : '하루 3회 인증',
                                 ),
                               )),
                         if (!isLoading && errorMessage != null)
@@ -118,11 +119,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   description: UiMappers.roomDescriptionFallback(room.title, room.description),
                                   status: UiMappers.statusLabel(room.status),
                                   statusColor: UiMappers.statusColor(room.status),
-                                  members: '${room.currentMemberCount}/${room.maxMembers}명',
-                                  points: UiMappers.point(room.stakePoint),
-                                  type: room.proofFrequencyType,
-                                  goal: UiMappers.frequencyGoal(room.proofFrequencyType, room.requiredProofCount),
-                                  progress: room.status == 'IN_PROGRESS' ? 0.5 : null,
+                                  members: '참여 인원 ${room.currentMemberCount}/${room.maxMembers}명',
+                                  points: UiMappers.stakePointLabel(room.stakePoint),
+                                  type: UiMappers.frequencyTypeLabel(room.proofFrequencyType),
+                                  goal: UiMappers.frequencyGoalLabel(room.proofFrequencyType, room.requiredProofCount),
                                   onTap: () => context.go('/rooms/${room.id}'),
                                 ),
                               )),
@@ -201,6 +201,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Widget _appDescriptionCard() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.verified_outlined, size: 18, color: Color(0xFF3B82F6)),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '친구들과 포인트 걸고 끝까지 인증하기',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '예치금을 걸고 미션을 시작해요. 서로의 인증을 확인하고, 끝까지 성공한 멤버가 보상을 가져갑니다.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF374151), height: 1.5),
+          ),
+          const SizedBox(height: 12),
+          _descriptionPoint(Icons.savings_outlined, '예치금으로 책임감 만들기'),
+          const SizedBox(height: 6),
+          _descriptionPoint(Icons.people_outline, '멤버끼리 서로 인증을 확인'),
+          const SizedBox(height: 6),
+          _descriptionPoint(Icons.emoji_events_outlined, '성공하면 예치금 반환 + 보상'),
+        ],
+      ),
+    );
+  }
+
+  Widget _descriptionPoint(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: const Color(0xFF3B82F6)),
+        const SizedBox(width: 6),
+        Text(text, style: const TextStyle(fontSize: 13, color: Color(0xFF374151))),
+      ],
+    );
+  }
+
   Widget _messageBox(String message, {bool isError = false}) {
     return Container(
       width: double.infinity,
@@ -224,7 +274,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String points,
     required String type,
     required String goal,
-    double? progress,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
@@ -262,29 +311,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            Row(children: [Expanded(child: _buildInfoItem(Icons.people_outline, members)), Expanded(child: _buildInfoItem(Icons.attach_money, points))]),
+            Row(children: [
+              Expanded(child: _buildInfoItem(Icons.people_outline, members)),
+              Expanded(child: _buildInfoItem(Icons.account_balance_wallet_outlined, points)),
+            ]),
             const SizedBox(height: 12),
-            Row(children: [Expanded(child: _buildInfoItem(Icons.calendar_today_outlined, type)), Expanded(child: _buildInfoItem(Icons.track_changes, goal))]),
-            if (progress != null) ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 8,
-                      decoration: BoxDecoration(color: const Color(0xFFF3F4F6), borderRadius: BorderRadius.circular(4)),
-                      child: FractionallySizedBox(
-                        alignment: Alignment.centerLeft,
-                        widthFactor: progress,
-                        child: Container(decoration: BoxDecoration(color: const Color(0xFF3B82F6), borderRadius: BorderRadius.circular(4))),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text('1/2', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
-                ],
-              ),
-            ],
+            Row(children: [
+              Expanded(child: _buildInfoItem(Icons.calendar_today_outlined, type)),
+              Expanded(child: _buildInfoItem(Icons.track_changes, goal)),
+            ]),
           ],
         ),
       ),

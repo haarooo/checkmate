@@ -24,7 +24,7 @@
   - inviteCode: 6자리 직접 입력 코드.
   - inviteLinkToken: URL 초대 링크 토큰.
   - members: userId, nickname, role, status, stakedPoint, stakedAt, joinedAt.
-- GET `/api/rooms/invite/{inviteCode}`
+- GET `/api/rooms/invite/{inviteLinkToken}`
 - POST `/api/rooms/{roomId}/join`
 - POST `/api/rooms/{roomId}/stake`
 - POST `/api/rooms/{roomId}/start`
@@ -59,10 +59,46 @@
   - 정산 미완료 방 → 409.
   - 응답: settlementId, totalPotPoint, successCount, failedCount, systemFeePoint, systemBonusPoint, settledAt, members.
 
-## Post-MVP 후보
-- GET `/api/rooms/{roomId}/records`
+## Second Phase API
+
+### Room Activity
+- GET `/api/rooms/{roomId}/activities`
+  - 방 멤버만 조회 가능. 비멤버 → 403.
+  - createdAt DESC 또는 ASC 정책은 plan에서 확정.
+
+### Notification
+- GET `/api/notifications`
+- GET `/api/notifications/unread-count`
+- PUT `/api/notifications/{notificationId}/read`
+- PUT `/api/notifications/read-all`
+  - 본인 알림만 조회/읽음 가능.
+  - 비로그인 → 401.
+
+### DeviceToken / FCM
+- POST `/api/device-tokens`
+  - token, platform 저장.
+- DELETE `/api/device-tokens/{token}`
+  - 로그아웃/토큰 만료 시 비활성화.
+
+### Room Chat
+- GET `/api/rooms/{roomId}/messages`
+  - 이전 메시지 조회.
+  - 방 멤버만 가능.
+- WebSocket `/ws`
+- SUBSCRIBE `/topic/rooms/{roomId}/messages`
+- SEND `/app/rooms/{roomId}/messages`
+
+### Mission Progress Board
+- GET `/api/rooms/{roomId}/progress-board` 후보
+  - 초기에는 기존 `/api/rooms/{roomId}/today-status`, `/api/rooms/{roomId}/members/stats` 재사용 가능.
+
+### Settlement Share Card
 - GET `/api/rooms/{roomId}/share-card/me`
 - GET `/api/rooms/{roomId}/share-card/group`
+
+## Post-MVP 후보
+- GET `/api/rooms/{roomId}/records`
+- 조기 종료: 최대 달성 가능 confirmed 수 계산, 조기 종료 가능 여부 조회, 조기 종료 정산.
 
 ## Status
 400 요청 오류, 401 인증 실패, 403 권한 없음, 404 없음, 409 중복/상태 충돌.

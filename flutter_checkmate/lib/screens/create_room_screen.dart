@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/network/api_client.dart';
 import '../core/providers/app_providers.dart';
+import '../core/utils/ui_mappers.dart';
 
 class CreateRoomScreen extends ConsumerStatefulWidget {
   const CreateRoomScreen({super.key});
@@ -21,6 +22,7 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
   String proofType = 'DAILY';
   int requiredCount = 2;
   int maxMembers = 5;
+  int durationDays = 30;
   bool isLoading = false;
   String? errorMessage;
 
@@ -42,7 +44,19 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
       return;
     }
 
-    final durationDays = proofType == 'WEEKLY' ? 28 : 30;
+    if (durationDays <= 0) {
+      setState(() => errorMessage = '미션 기간을 선택해주세요.');
+      return;
+    }
+    if (proofType == 'DAILY' && durationDays < 30) {
+      setState(() => errorMessage = '매일 인증은 최소 30일 이상 진행해야 합니다.');
+      return;
+    }
+    if (proofType == 'WEEKLY' && durationDays < 28) {
+      setState(() => errorMessage = '주 단위 인증은 최소 4주 이상 진행해야 합니다.');
+      return;
+    }
+
     final count = proofType == 'WEEKLY' ? requiredCount.clamp(1, 7).toInt() : requiredCount;
 
     setState(() {
@@ -70,6 +84,11 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+  }
+
+  String _durationLabel() {
+    if (proofType == 'WEEKLY') return '${durationDays ~/ 7}주 ($durationDays일)';
+    return '$durationDays일';
   }
 
   @override
@@ -112,11 +131,13 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Expanded(child: _dateBox('시작일', '시작 후 다음날')),
+                        Expanded(child: _dateBox('미션 시작일', '방장 시작 다음날')),
                         const SizedBox(width: 12),
-                        Expanded(child: _dateBox('기간', proofType == 'WEEKLY' ? '4주' : '30일')),
+                        Expanded(child: _dateBox('선택 기간', _durationLabel())),
                       ],
                     ),
+                    const SizedBox(height: 10),
+                    _buildDurationSelector(),
                     const SizedBox(height: 20),
                     const Text('인증 방식', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
                     const SizedBox(height: 8),
@@ -126,20 +147,48 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFBFDBFE))),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Icon(Icons.info_outline, size: 16, color: Color(0xFF3B82F6)),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              proofType == 'DAILY' ? 'DAILY: 매일 목표 횟수만큼 인증해야 합니다' : 'WEEKLY: 일주일 내에 목표 횟수만큼 인증하면 됩니다',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF2563EB)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  proofType == 'DAILY'
+                                      ? '매일 정해진 횟수만큼 인증을 제출해야 해요. 최소 30일 이상 진행됩니다.'
+                                      : '한 주 안에 정해진 횟수만큼 인증을 제출하면 돼요. 최소 4주 이상 진행됩니다.',
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF2563EB)),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  '제출만으로는 성공이 아니며, 멤버 확인이 완료되어야 인정됩니다.',
+                                  style: TextStyle(fontSize: 12, color: Color(0xFF2563EB)),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Text(proofType == 'DAILY' ? '하루에 몇 번 인증할까요?' : '일주일에 몇 번 인증할까요?', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          proofType == 'DAILY' ? '하루 제출 목표' : '주간 제출 목표',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          proofType == 'DAILY'
+                              ? '매일 이 횟수만큼 인증을 올려야 해요.'
+                              : '한 주 동안 이 횟수만큼 인증을 올리면 돼요.',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -168,11 +217,18 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
                       child: const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('23:00', style: TextStyle(fontSize: 16, color: Color(0xFF111827))), Icon(Icons.access_time, color: Color(0xFF9CA3AF))]),
                     ),
                     const SizedBox(height: 4),
-                    const Text('매일 이 시간 이후에는 인증을 제출할 수 없습니다', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                    Text(
+                      proofType == 'DAILY'
+                          ? '매일 23:00 이후에는 인증을 제출할 수 없어요.'
+                          : '주간 미션은 매주 마지막 날 23:00까지 제출할 수 있어요.',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    ),
                     const SizedBox(height: 20),
-                    _buildTextField('예치 포인트', '10000', stakePointController, keyboardType: TextInputType.number),
+                    _buildTextField('내 예치금', '예: 10000', stakePointController, keyboardType: TextInputType.number),
                     const SizedBox(height: 4),
-                    const Text('미션 성공 시 예치금이 반환됩니다', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                    const Text('성공하면 돌려받고, 실패하면 성공한 멤버에게 분배될 수 있어요.', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                    const SizedBox(height: 12),
+                    _stakeInfoCard(),
                     if (errorMessage != null) ...[
                       const SizedBox(height: 12),
                       Text(errorMessage!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13)),
@@ -201,10 +257,100 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
     );
   }
 
+  Widget _buildDurationSelector() {
+    final options = proofType == 'DAILY' ? [30, 60, 90, 120] : [28, 56, 84, 112];
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options.map((days) {
+        final isSelected = durationDays == days;
+        final label = proofType == 'WEEKLY' ? '${days ~/ 7}주' : '$days일';
+        return GestureDetector(
+          onTap: () => setState(() => durationDays = days),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFFE5E7EB)),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? Colors.white : const Color(0xFF374151),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _stakeInfoCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: Color(0xFF3B82F6)),
+              SizedBox(width: 8),
+              Text(
+                '예치금은 어떻게 쓰이나요?',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '예치금은 미션 시작 전 납부하는 가상 포인트입니다. 성공하면 돌려받고, 실패하면 성공한 멤버에게 분배될 수 있어요.',
+            style: TextStyle(fontSize: 12, color: Color(0xFF374151), height: 1.5),
+          ),
+          const SizedBox(height: 10),
+          ...UiMappers.settlementPolicyTexts.map(
+            (text) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('• ', style: TextStyle(fontSize: 12, color: Color(0xFF3B82F6))),
+                  Expanded(
+                    child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF374151))),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            UiMappers.virtualPointNoticeText,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _dateBox(String label, String value) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
-        child: Text(value, style: const TextStyle(color: Color(0xFF6B7280))),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+            const SizedBox(height: 2),
+            Text(value, style: const TextStyle(fontSize: 14, color: Color(0xFF374151), fontWeight: FontWeight.w500)),
+          ],
+        ),
       );
 
   Widget _buildTextField(String label, String hint, TextEditingController controller, {int maxLines = 1, TextInputType? keyboardType}) {
@@ -252,12 +398,17 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
 
   Widget _buildProofTypeButton(String type) {
     final isSelected = proofType == type;
+    final label = type == 'DAILY' ? '매일 인증' : '주 단위 인증';
     return GestureDetector(
-      onTap: () => setState(() { proofType = type; if (type == 'WEEKLY' && requiredCount > 7) requiredCount = 7; }),
+      onTap: () => setState(() {
+        proofType = type;
+        durationDays = type == 'WEEKLY' ? 28 : 30;
+        if (type == 'WEEKLY' && requiredCount > 7) requiredCount = 7;
+      }),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFFE5E7EB))),
-        child: Text(type, textAlign: TextAlign.center, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : const Color(0xFF374151))),
+        child: Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : const Color(0xFF374151))),
       ),
     );
   }

@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 class UiMappers {
   static final NumberFormat _numberFormat = NumberFormat('#,###');
 
+  // ─── 기존 유지 ───────────────────────────────────────────────
+
   static String point(int value) => '${_numberFormat.format(value)}P';
 
   static String statusLabel(String status) {
@@ -12,10 +14,12 @@ class UiMappers {
       case 'RECRUITING':
         return '모집중';
       case 'READY':
-        return '대기중';
+        return '시작대기';
       case 'IN_PROGRESS':
         return '진행중';
       case 'SETTLED':
+        return '정산완료';
+      case 'FINISHED':
         return '종료';
       default:
         return status;
@@ -31,6 +35,8 @@ class UiMappers {
       case 'IN_PROGRESS':
         return const Color(0xFF22C55E);
       case 'SETTLED':
+        return const Color(0xFF6B7280);
+      case 'FINISHED':
         return const Color(0xFF6B7280);
       default:
         return const Color(0xFF9CA3AF);
@@ -88,15 +94,21 @@ class UiMappers {
   static String proofProgressLabel(String status) {
     switch (status) {
       case 'SUCCESS':
-        return '확인완료';
+        return '목표 완료';
       case 'WAITING_CONFIRM':
-        return '확인대기';
+        return '확인 대기';
       case 'NEED_SUBMIT':
-      case 'NEED_MORE':
-        return '제출필요';
+        return '제출 필요';
       case 'MISSED':
+        return '기간 마감';
+      case 'NEED_MORE':
+        return '추가 필요';
       case 'FAILED':
-        return '미달성';
+        return '실패';
+      case 'CONFIRMED':
+        return '확인 완료';
+      case 'SUBMITTED':
+        return '제출 완료';
       default:
         return status;
     }
@@ -105,8 +117,10 @@ class UiMappers {
   static Color proofProgressColor(String status) {
     switch (status) {
       case 'SUCCESS':
+      case 'CONFIRMED':
         return const Color(0xFF22C55E);
       case 'WAITING_CONFIRM':
+      case 'SUBMITTED':
         return const Color(0xFF3B82F6);
       case 'NEED_SUBMIT':
       case 'NEED_MORE':
@@ -118,4 +132,117 @@ class UiMappers {
         return const Color(0xFF9CA3AF);
     }
   }
+
+  // ─── 신규 helper ──────────────────────────────────────────────
+
+  static String frequencyTypeLabel(String type) {
+    switch (type) {
+      case 'DAILY':
+        return '일 단위';
+      case 'WEEKLY':
+        return '주 단위';
+      default:
+        return '인증 방식 미정';
+    }
+  }
+
+  static String frequencyGoalLabel(String type, int count) {
+    if (type == 'DAILY') return count == 1 ? '하루 1회 인증' : '하루 ${count}회 인증';
+    if (type == 'WEEKLY') return count == 1 ? '매주 1회 인증' : '매주 ${count}회 인증';
+    return '인증 방식 미정';
+  }
+
+  static String currentPeriodGoalLabel(String type, int count) {
+    if (type == 'DAILY') return '오늘 ${count}회 제출';
+    if (type == 'WEEKLY') return '이번 주 ${count}회 제출';
+    return '인증 방식 미정';
+  }
+
+  static String currentPeriodTitle(String type) {
+    switch (type) {
+      case 'DAILY':
+        return '오늘 인증 현황';
+      case 'WEEKLY':
+        return '이번 주 인증 현황';
+      default:
+        return '인증 현황';
+    }
+  }
+
+  static String remainingSubmitLabel(String type) {
+    switch (type) {
+      case 'DAILY':
+        return '오늘 남은 제출';
+      case 'WEEKLY':
+        return '이번 주 남은 제출';
+      default:
+        return '남은 제출';
+    }
+  }
+
+  static String deadlineLabel(String type, String deadlineTime) {
+    switch (type) {
+      case 'DAILY':
+        return '매일 ${deadlineTime}까지 제출';
+      case 'WEEKLY':
+        return '매주 ${deadlineTime}까지 제출';
+      default:
+        return '${deadlineTime}까지 제출';
+    }
+  }
+
+  static String stakePointLabel(num point) =>
+      '내 예치금 ${_numberFormat.format(point)}P';
+
+  static String potPointLabel(num point) =>
+      '총 예치금 ${_numberFormat.format(point)}P';
+
+  static String rewardPointLabel(num point) =>
+      '정산 보상 ${_numberFormat.format(point)}P';
+
+  static String bonusPointLabel(num point) =>
+      '전원 성공 보너스 ${_numberFormat.format(point)}P';
+
+  static String feePointLabel(num point) =>
+      '실패 패널티 ${_numberFormat.format(point)}P';
+
+  static String proofProgressDescription(String status) {
+    switch (status) {
+      case 'SUCCESS':
+        return '목표를 완료했어요.';
+      case 'WAITING_CONFIRM':
+        return '제출은 완료했고, 멤버 확인을 기다리는 중이에요.';
+      case 'NEED_SUBMIT':
+        return '아직 제출이 더 필요해요.';
+      case 'MISSED':
+        return '이번 기간 제출 시간이 마감됐어요.';
+      case 'NEED_MORE':
+        return '목표까지 추가 인증이 필요해요.';
+      case 'FAILED':
+        return '성공 기준을 달성하지 못했어요.';
+      default:
+        return '';
+    }
+  }
+
+  static String successRuleLabel(int targetRate) =>
+      '전체 인증의 $targetRate% 이상을 확인받으면 성공';
+
+  static const String confirmNoticeText =
+      '제출만으로는 성공이 아니에요. 친구가 확인해줘야 성공 인증으로 인정됩니다.';
+
+  static const String virtualPointNoticeText =
+      '현재 포인트는 서비스 내 가상 포인트입니다.';
+
+  static const String penaltyNoticeText =
+      '인증을 못 채우면 예치금이 성공한 멤버에게 분배될 수 있어요.';
+
+  static const String bonusNoticeText =
+      '전원이 성공하면 모두가 예치금과 보너스를 받습니다.';
+
+  static const List<String> settlementPolicyTexts = [
+    '전원 성공: 모두 예치금 반환 + 성공 보너스',
+    '일부 성공: 성공자가 실패자의 예치금을 나눠 받음',
+    '전원 실패: 30% 패널티 후 남은 포인트 환불',
+  ];
 }

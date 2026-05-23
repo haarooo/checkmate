@@ -1,4 +1,5 @@
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -55,7 +56,10 @@ class _SubmitProofScreenState extends ConsumerState<SubmitProofScreen> {
       context.go('/rooms/${widget.roomId}/proofs');
     } catch (e) {
       if (!mounted) return;
-      setState(() => errorMessage = ApiClient.messageFromError(e));
+      final message = (e is DioException && e.response?.statusCode == 409)
+          ? '미션 기간이 아니거나, 마감 시간이 지났거나, 제출 가능 횟수를 초과했습니다.'
+          : ApiClient.messageFromError(e);
+      setState(() => errorMessage = message);
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -74,7 +78,7 @@ class _SubmitProofScreenState extends ConsumerState<SubmitProofScreen> {
               Row(children: [IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/rooms/${widget.roomId}'))]),
               const Text('인증 제출', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 4),
-              const Text('오늘의 미션 인증을 올려주세요', style: TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
+              const Text('미션 인증을 올려주세요', style: TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
             ]),
           ),
           Container(height: 1, color: const Color(0xFFF3F4F6)),
@@ -119,7 +123,7 @@ class _SubmitProofScreenState extends ConsumerState<SubmitProofScreen> {
                     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text('인증 제출 안내', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
                       SizedBox(height: 8),
-                      Text('• 텍스트 또는 사진/동영상 중 하나는 필수입니다\n• 제출 후 다른 멤버가 확인하면 인증이 완료됩니다\n• 본인은 자기 인증을 확인할 수 없습니다', style: TextStyle(fontSize: 12, color: Color(0xFF92400E), height: 1.5)),
+                      Text('• 텍스트 또는 사진/동영상 중 하나는 필수입니다\n• 제출만으로는 완료가 아니에요. 다른 멤버가 확인해야 성공으로 인정됩니다\n• 본인의 인증은 본인이 직접 확인할 수 없어요', style: TextStyle(fontSize: 12, color: Color(0xFF92400E), height: 1.5)),
                     ])),
                   ]),
                 ),

@@ -29,6 +29,15 @@ MySQL 기준. 상세 정책은 `01_BUSINESS_RULES.md`.
   created_at, updated_at
   - result_status: SUCCESS / FAILED (SettlementMemberResult enum)
 
+## Second Phase Tables
+- room_activities: id, room_id FK, actor_id FK NULL, type, message, created_at
+  - type: MEMBER_JOINED, MEMBER_STAKED, ROOM_READY, ROOM_STARTED, PROOF_SUBMITTED, PROOF_CONFIRMED, ROOM_SETTLED
+- notifications: id, receiver_id FK, room_id FK NULL, type, title, message, read_at NULL, created_at
+  - type: PROOF_SUBMITTED, PROOF_CONFIRMED, ROOM_STARTED, ROOM_SETTLED, MEMBER_JOINED, MEMBER_STAKED
+- device_tokens: id, user_id FK, token UNIQUE, platform, active, created_at, updated_at
+  - platform: ANDROID, IOS, WEB
+- room_messages: id, room_id FK, sender_id FK, content, created_at
+
 ## Unique
 - point_wallets.user_id
 - rooms.invite_code
@@ -36,11 +45,17 @@ MySQL 기준. 상세 정책은 `01_BUSINESS_RULES.md`.
 - proof_confirmations(proof_id, confirmer_id)
 - settlements.room_id
 - settlement_members(settlement_id, user_id)
+- device_tokens.token
 
 ## Index (조회용)
 - proofs(room_id, user_id, proof_date) — DAILY 일별/WEEKLY 주차별 제출 수 집계용
+- room_activities(room_id, created_at)
+- notifications(receiver_id, read_at, created_at)
+- room_messages(room_id, created_at)
 
 ## 금지
 - 예약어 테이블명 금지.
 - rooms에 proof_type/is_public 금지.
 - proofs.status에 FAILED/REJECTED/EXPIRED 추가 금지.
+- 채팅 메시지 삭제/수정 테이블은 2차 초기 범위에서 제외.
+- FCM topic 구독 방식은 2차 초기 범위에서 제외.

@@ -94,7 +94,19 @@ class _MemberStatusScreenState extends ConsumerState<MemberStatusScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(24),
                 child: Column(children: [
-                  Row(children: [Expanded(child: _buildSummaryBox('$successCount', '완료', const Color(0xFF22C55E))), const SizedBox(width: 12), Expanded(child: _buildSummaryBox('$waitingCount', '확인대기', const Color(0xFF3B82F6))), const SizedBox(width: 12), Expanded(child: _buildSummaryBox('$needCount', '제출필요', const Color(0xFFF97316)))]),
+                  Row(children: [
+                    Expanded(child: _buildSummaryBox('$successCount', '목표 달성', const Color(0xFF22C55E))),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildSummaryBox('$waitingCount', '확인 대기', const Color(0xFF3B82F6))),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildSummaryBox('$needCount', '추가 필요', const Color(0xFFF97316))),
+                  ]),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '확인 완료된 인증 수를 기준으로 목표 달성을 계산해요.',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 20),
                   if (isLoading)
                     const Padding(padding: EdgeInsets.symmetric(vertical: 60), child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
@@ -133,32 +145,137 @@ class _MemberStatusScreenState extends ConsumerState<MemberStatusScreen> {
     );
   }
 
-  String _status(Map m) => (m['expectedResult'] ?? m['progressStatus'] ?? 'NEED_MORE').toString();
+  String _status(Map m) =>
+      (m['progressStatus'] ?? m['expectedResult'] ?? m['status'] ?? 'NEED_MORE').toString();
+
   int? _asInt(dynamic v) => v is num ? v.toInt() : null;
 
-  Widget _buildSummaryBox(String value, String label, Color color) => Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF3F4F6))), child: Column(children: [Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)), const SizedBox(height: 4), Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)))]));
+  Widget _buildSummaryBox(String value, String label, Color color) => Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFF3F4F6))),
+        child: Column(children: [
+          Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)), maxLines: 1, overflow: TextOverflow.ellipsis),
+        ]),
+      );
 
-  Widget _buildMemberCard({required String initial, required String name, String? role, required String subtitle, required String status, required Color statusColor, required String submitted, required String confirmed, required int required}) {
+  Widget _buildMemberCard({
+    required String initial,
+    required String name,
+    String? role,
+    required String subtitle,
+    required String status,
+    required Color statusColor,
+    required String submitted,
+    required String confirmed,
+    required int required,
+  }) {
     final confirmedInt = int.tryParse(confirmed) ?? 0;
+    final submittedInt = int.tryParse(submitted) ?? 0;
     final progress = required == 0 ? 0.0 : (confirmedInt / required).clamp(0.0, 1.0).toDouble();
+
+    final String hint;
+    final Color hintBgColor;
+    final Color hintTextColor;
+    if (required == 0) {
+      hint = '목표가 아직 설정되지 않았어요';
+      hintBgColor = const Color(0xFFF3F4F6);
+      hintTextColor = const Color(0xFF6B7280);
+    } else if (confirmedInt >= required) {
+      hint = '목표를 달성했어요';
+      hintBgColor = const Color(0xFFF0FDF4);
+      hintTextColor = const Color(0xFF22C55E);
+    } else if (submittedInt >= required) {
+      hint = '제출은 충분해요. 멤버 확인을 기다리는 중이에요';
+      hintBgColor = const Color(0xFFEFF6FF);
+      hintTextColor = const Color(0xFF3B82F6);
+    } else {
+      hint = '목표까지 확인 ${required - confirmedInt}개 더 필요해요';
+      hintBgColor = const Color(0xFFFFF7ED);
+      hintTextColor = const Color(0xFFF97316);
+    }
+
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: statusColor.withOpacity(0.35)), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 2))]),
+      decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: statusColor.withOpacity(0.35)),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 2))]),
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Container(width: 48, height: 48, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle), child: Center(child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)))),
+          Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+              child: Center(child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)))),
           const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Row(children: [Text(name, style: const TextStyle(fontWeight: FontWeight.bold)), if (role != null) ...[const SizedBox(width: 8), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: const Color(0xFFDBEAFE), borderRadius: BorderRadius.circular(6)), child: Text(role, style: const TextStyle(color: Color(0xFF2563EB), fontSize: 12, fontWeight: FontWeight.w600)))]]), const SizedBox(height: 4), Text(subtitle, style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)))])),
-          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(12)), child: Text(status, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600))),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                if (role != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(color: const Color(0xFFDBEAFE), borderRadius: BorderRadius.circular(6)),
+                      child: Text(role, style: const TextStyle(color: Color(0xFF2563EB), fontSize: 12, fontWeight: FontWeight.w600))),
+                ],
+              ]),
+              const SizedBox(height: 4),
+              Text(subtitle, style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
+            ]),
+          ),
+          Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(12)),
+              child: Text(status, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600))),
         ]),
         const SizedBox(height: 16),
-        Row(children: [Expanded(child: _buildStatBox(submitted, '제출 완료', const Color(0xFF3B82F6))), const SizedBox(width: 12), Expanded(child: _buildStatBox(confirmed, '확인 완료', const Color(0xFF22C55E)))]),
+        Row(children: [
+          Expanded(child: _buildStatBox(submitted, '제출 완료', const Color(0xFF3B82F6))),
+          const SizedBox(width: 12),
+          Expanded(child: _buildStatBox(confirmed, '확인 완료', const Color(0xFF22C55E))),
+        ]),
         const SizedBox(height: 12),
-        Row(children: [Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: progress, minHeight: 8, backgroundColor: const Color(0xFFF3F4F6), valueColor: AlwaysStoppedAnimation<Color>(statusColor)))), const SizedBox(width: 8), Text('$confirmed/$required', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)))]),
-        if (confirmedInt < required) ...[const SizedBox(height: 12), Container(width: double.infinity, padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFFFFF7ED), borderRadius: BorderRadius.circular(8)), child: Text('인증을 ${required - confirmedInt}개 더 제출해야 해요', style: const TextStyle(fontSize: 12, color: Color(0xFFF97316), fontWeight: FontWeight.w600)))],
+        Row(children: [
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 8,
+                  backgroundColor: const Color(0xFFF3F4F6),
+                  valueColor: AlwaysStoppedAnimation<Color>(statusColor)),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text('확인 완료 $confirmed/$required',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
+        ]),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: hintBgColor, borderRadius: BorderRadius.circular(8)),
+          child: Text(hint,
+              style: TextStyle(fontSize: 12, color: hintTextColor, fontWeight: FontWeight.w600)),
+        ),
       ]),
     );
   }
 
-  Widget _buildStatBox(String value, String label, Color color) => Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(8)), child: Column(children: [Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)), const SizedBox(height: 4), Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)))]));
+  Widget _buildStatBox(String value, String label, Color color) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(8)),
+        child: Column(children: [
+          Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+        ]),
+      );
 }

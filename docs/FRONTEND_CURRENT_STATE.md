@@ -1,6 +1,6 @@
 # FRONTEND_CURRENT_STATE.md
 
-마지막 업데이트: 2026-05-21
+마지막 업데이트: 2026-05-23
 
 ---
 
@@ -75,7 +75,7 @@
 - 인증 확인 (`POST /api/proofs/{proofId}/confirm`)
 
 ### 현재 오류
-- 없음 (알려진 TypeError 모두 해결)
+- 없음 (알려진 TypeError 모두 해결, 에러 메시지 사용자 친화적으로 개선 완료)
 
 ---
 
@@ -104,32 +104,91 @@ id: _readInt(json['roomId'] ?? json['id']),
 - `RoomDetailModel.fromJson`: `json['roomId'] ?? json['id']` 처리, 모든 필드 null-safe
 - `RoomMemberModel`: `stakedPoint`, `stakedAt` 필드 추가
 
+### api_client.dart
+- `messageFromError(Object error)` 3단계 우선순위로 재구성
+  1. `response.data`(`Map` 타입 안전 처리)에서 `message → detail → error` 순서로 추출
+  2. `_isUserFriendlyMessage` 필터 통과한 경우만 반환 (100자 초과, HTML, 영문 HTTP status 텍스트, Dio 내부 문자열 차단)
+  3. statusCode 기반 한국어 기본 메시지 (`_statusCodeMessage`)
+- `_isUserFriendlyMessage(String)`: 개발자용 문자열 필터 private helper
+- `_statusCodeMessage(int)`: 400/401/403/404/409/413/500별 한국어 메시지 반환
+- connectionError / DioException 아닌 예외 → 짧은 고정 메시지 반환
+- 기존 "Spring Boot가 켜져 있는지 확인하세요." 등 개발자용 문구 제거
+
+### ui_mappers.dart
+- 앱 전체 UI 텍스트 변환 담당 static 유틸 클래스
+- 상태 라벨: `statusLabel`, `memberStatusLabel`, `proofProgressLabel`, `roleLabel`
+- 설명 문구: `proofProgressDescription`, `successRuleLabel`, `roomDescriptionFallback`
+- 포인트 라벨: `stakePointLabel`, `potPointLabel`, `rewardPointLabel`, `bonusPointLabel`, `feePointLabel`
+- 인증 방식: `frequencyTypeLabel`, `frequencyGoalLabel`, `currentPeriodTitle`, `remainingSubmitLabel`, `deadlineLabel`
+- const 상수: `confirmNoticeText`, `virtualPointNoticeText`, `penaltyNoticeText`, `bonusNoticeText`, `settlementPolicyTexts`
+- 주요 문구 기준
+  - `SUCCESS` → `'목표 완료'`
+  - `successRuleLabel(n)` → `'전체 인증의 n% 이상을 확인받으면 성공'`
+  - `proofProgressDescription(SUCCESS)` → `'목표를 완료했어요.'`
+
+### create_room_screen.dart
+- 미션 기간: `durationDays` 상태변수, DAILY [30/60/90/120일] / WEEKLY [28/56/84/112일] 선택 버튼
+- `_durationLabel()`: WEEKLY는 "4주 (28일)" 형식 표시
+- dateBox: `'미션 시작일' / '방장 시작 다음날'` 표시
+- 제출 목표 라벨: DAILY → `'하루 제출 목표'`, WEEKLY → `'주간 제출 목표'`
+- 예치금 안내 카드 (`_stakeInfoCard()`): 정산 정책 3줄 + 가상 포인트 안내
+- 인증 방식 안내 박스: DAILY/WEEKLY 설명 + 멤버 확인 필요 안내
+- 마감 시간 설명: DAILY/WEEKLY 조건부 텍스트
+
+### home_screen.dart
+- 앱 설명 카드 (`_appDescriptionCard()`): 포인트 카드 아래 고정 표시
+  - 포인트 3개: "예치금으로 책임감 만들기" / "멤버끼리 서로 인증을 확인" / "성공하면 예치금 반환 + 보상"
+- 방 카드: `stakePointLabel`, `frequencyTypeLabel`, `frequencyGoalLabel` 사용
+
 ### room_dashboard_screen.dart
-- 초대 카드: 초대코드 + 초대링크 각각 복사 버튼
-- RECRUITING/READY 상태 안내 문구: "미션 시작 후 인증 제출이 가능합니다."
-- 초대링크 URL 형식: `'${Uri.base.origin}/#/invite/$token'` (hash routing)
+- 위젯 순서: `_missionSummaryCard` → `_ruleCard` → `_todayStatusCard` → `_myStatusCard` → `_memberPreviewCard` → `_inviteCard`
+- `_missionSummaryCard`: 진행 기간, 인증 방식, 성공 기준, 내 예치금, 총 예치금, 인원, 마감 시간 표시
+- `_ruleCard`: 5줄 룰 안내 (confirmNoticeText, '확인 완료된 인증만 성공 기준에 반영돼요.', 성공/패널티/보너스)
+- `_todayStatusCard` 통계 박스 라벨: `'제출' / '확인' / '남은 제출'` (짧게 고정)
+- `_todayStatusCard` 설명 문구: `'확인 완료된 인증만 목표 달성에 반영돼요.'`
+- `_myStatusCard`: progressStatus 기반 배지 + `proofProgressDescription` 설명 문구
+- `_memberPreviewCard`: `todayStatus['members']` 우선, 없으면 members fallback. `progressStatus ?? expectedResult ?? status` 순서로 상태 읽기. role 표시 포함
+- 초대 카드: 초대코드 + 초대링크 각각 복사 버튼, URL: `'${Uri.base.origin}/#/invite/$token'`
 
 ### join_room_screen.dart
-- `_extractInviteToken()` 추가: 전체 URL 붙여넣기 시 토큰만 추출
-- `initState` / `loadPreview` 에서 정규화 적용
+- `_extractInviteToken()`: 전체 URL 붙여넣기 시 토큰만 추출
+- 입력 레이블: `'초대 링크 또는 토큰'`, placeholder: `'초대 링크를 붙여넣어 주세요'`
+- 미리보기 카드: `frequencyTypeLabel` / `frequencyGoalLabel` / `deadlineLabel` 적용, `Icons.account_balance_wallet_outlined` 사용
+- 참여 안내 박스: 예치금 납부 안내 + 멤버 확인 필요 안내 (주황색 카드)
 
-### proof_model.dart (전면 재작성)
-- `ProofSubmitResponseModel.fromJson`: helpers 적용
-- `ProofFeedItemModel` 추가 (17개 필드, `proofId ?? id` 처리)
-- helper 함수 추가 (room_model.dart와 동일 패턴)
+### submit_proof_screen.dart
+- 부제목: `'미션 인증을 올려주세요'`
+- 안내 문구: 제출만으로 완료 아님, 멤버 확인 필요, 본인 확인 불가 3줄
+- 409 특화 처리: `DioException && statusCode == 409` 시 `'미션 기간이 아니거나, 마감 시간이 지났거나, 제출 가능 횟수를 초과했습니다.'` 표시
 
-### proof_service.dart
-- `getProofFeed(int roomId)`: `GET /api/rooms/{roomId}/proofs` 호출
-- `confirmProof(int proofId)`: `POST /api/proofs/{proofId}/confirm` (기존)
-
-### proof_feed_screen.dart (전면 재작성)
-- `ConsumerStatefulWidget` 기반
-- 로딩 / 에러 / 빈 상태 / 리스트 상태 처리
-- `RefreshIndicator` 지원
-- 이미지: `Image.network()`, 동영상: 재생 아이콘
+### proof_feed_screen.dart
+- `ConsumerStatefulWidget` 기반, 로딩 / 에러 / 빈 상태 / 리스트 처리
+- 헤더 부제목: `'멤버들의 인증을 확인하고 성공을 응원해요'`
+- 빈 상태: `'아직 올라온 인증이 없어요.'` + `'첫 번째로 인증을 올려보세요!'`
+- 상태 배지: `'확인 완료'` / `'확인 대기'` (공백 포함)
 - 파일 URL 처리: 상대경로면 `ApiConstants.baseUrl` 앞에 붙임
 - 확인 버튼: `canConfirm` 기반, 클릭 시 silent refresh
 - 상태 표시: `isMine` / `alreadyConfirmedByMe` / `canConfirm` / 대기중 분기
+
+### member_status_screen.dart
+- 상단 요약 박스: `'목표 달성' / '확인 대기' / '추가 필요'`
+- 요약 박스 아래: `'확인 완료된 인증 수를 기준으로 목표 달성을 계산해요.'`
+- 멤버 카드 hint 4가지:
+  - required==0: `'목표가 아직 설정되지 않았어요'`
+  - confirmed>=required: `'목표를 달성했어요'`
+  - submitted>=required: `'제출은 충분해요. 멤버 확인을 기다리는 중이에요'`
+  - else: `'목표까지 확인 n개 더 필요해요'`
+- 진행률 바: `'확인 완료 confirmed/required'` 표시
+- 상태 읽기: `progressStatus ?? expectedResult ?? status` 순서
+- `_buildSummaryBox` 라벨에 `maxLines: 1, overflow: TextOverflow.ellipsis` 방어 코드
+
+### proof_model.dart
+- `ProofSubmitResponseModel.fromJson`: helpers 적용
+- `ProofFeedItemModel` 추가 (17개 필드, `proofId ?? id` 처리)
+
+### proof_service.dart
+- `getProofFeed(int roomId)`: `GET /api/rooms/{roomId}/proofs`
+- `confirmProof(int proofId)`: `POST /api/proofs/{proofId}/confirm`
 
 ### 백엔드 (Proof Feed)
 - `GET /api/rooms/{roomId}/proofs` 추가 (`ProofController`)
@@ -173,3 +232,37 @@ Flutter `baseUrl`은 실행 환경별로 다르다.
 - 백엔드 API를 무작정 바꾸지 말 것
 - `id`를 `roomId`로 일괄 변경하는 대규모 수정 금지
 - 코드 수정 전 반드시 미리보기 제시
+
+---
+
+## 11. 2차 프론트 계획
+
+2차 프론트 기능 후보:
+
+1. ActivityFeedScreen
+   - 방 활동 피드 표시
+   - 방 참여, 예치, 시작, 인증 제출, 인증 확인, 정산 완료 이벤트
+
+2. NotificationScreen
+   - 알림 목록
+   - 읽음 처리
+   - 미확인 알림 배지
+
+3. FCM 연동
+   - firebase_messaging 추가
+   - FCM token 등록 API 호출
+   - foreground/background 알림 처리
+
+4. RoomChatScreen
+   - WebSocket/STOMP 연결
+   - 메시지 실시간 수신
+   - 이전 메시지 조회
+   - 메시지 전송
+
+5. MissionProgressBoard
+   - 현재 파란 요약 카드를 방 전체 대시보드로 확장
+   - 전체 진행률, 목표 완료/확인 대기/제출 필요 인원 표시
+
+6. SettlementShareCardScreen
+   - 개인/그룹 정산 결과 카드 UI
+   - 추후 이미지 저장/공유 확장

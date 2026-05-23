@@ -105,6 +105,12 @@ class _ProofFeedScreenState extends ConsumerState<ProofFeedScreen> {
                   padding: EdgeInsets.only(left: 16),
                   child: Text('인증 피드', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                 ),
+                const SizedBox(height: 4),
+                const Padding(
+                  padding: EdgeInsets.only(left: 16),
+                  child: Text('멤버들의 인증을 확인하고 성공을 응원해요',
+                      style: TextStyle(fontSize: 14, color: Color(0xFF6B7280))),
+                ),
               ],
             ),
           ),
@@ -148,7 +154,9 @@ class _ProofFeedScreenState extends ConsumerState<ProofFeedScreen> {
                 children: [
                   Icon(Icons.photo_library_outlined, size: 48, color: Color(0xFF9CA3AF)),
                   SizedBox(height: 12),
-                  Text('아직 인증이 없습니다.', style: TextStyle(color: Color(0xFF6B7280))),
+                  Text('아직 올라온 인증이 없어요.', style: TextStyle(color: Color(0xFF6B7280))),
+                  SizedBox(height: 4),
+                  Text('첫 번째로 인증을 올려보세요!', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
                 ],
               ),
             ),
@@ -205,7 +213,7 @@ class _ProofFeedScreenState extends ConsumerState<ProofFeedScreen> {
   Widget _buildCardHeader(ProofFeedItemModel item, bool isConfirmed) {
     final initial = item.nickname.isNotEmpty ? item.nickname[0] : '?';
     final statusColor = isConfirmed ? const Color(0xFF22C55E) : const Color(0xFF3B82F6);
-    final statusText = isConfirmed ? '확인완료' : '제출됨';
+    final statusText = isConfirmed ? '확인 완료' : '확인 대기';
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

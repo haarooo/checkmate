@@ -110,3 +110,43 @@
 6. PointWallet 증가 + PointLedger 저장
 7. RoomMember.status → SUCCESS / FAILED
 8. Room.status → SETTLED
+
+## 2차 기능 정책
+
+### RoomActivity
+- 방 멤버만 활동 피드 조회 가능.
+- 방 참여, 예치, 시작, 인증 제출, 인증 확인, 정산 완료 이벤트를 기록한다.
+- 활동 피드는 삭제하지 않는다.
+- 활동 피드는 정산/포인트 계산에 영향을 주지 않는다.
+
+### Notification
+- 알림은 Notification DB에 먼저 저장한다.
+- FCM 발송 실패가 원본 이벤트 처리 실패로 이어지면 안 된다.
+- 알림 대상은 이벤트별로 다르다.
+  - 인증 제출: 작성자를 제외한 방 멤버
+  - 인증 확인: 인증 작성자
+  - 방 시작: 방 멤버 전체
+  - 정산 완료: 방 멤버 전체
+- 알림 읽음 처리는 readAt 기준이다.
+
+### DeviceToken / FCM
+- FCM token은 사용자별로 저장한다.
+- 로그아웃 또는 token 만료 시 비활성화할 수 있다.
+- 같은 token 중복 저장은 방지한다.
+- FCM은 앱 외부 알림이고, Notification은 앱 내부 알림이다.
+
+### RoomChat
+- 방 멤버만 채팅 조회/전송 가능.
+- 비멤버는 WebSocket 구독/전송 불가.
+- 빈 메시지 전송 불가.
+- 메시지 수정/삭제/읽음 처리는 2차 초기 범위에서 제외한다.
+
+### MissionProgressBoard
+- 기존 today-status / members-stats 데이터를 우선 활용한다.
+- 진행보드는 읽기 전용이다.
+- 진행보드는 정산 결과를 변경하지 않는다.
+
+### ShareCard
+- 정산 완료 후 조회 가능하다.
+- 초기에는 Flutter 화면 카드로 표시한다.
+- 이미지 저장/외부 공유는 후순위다.

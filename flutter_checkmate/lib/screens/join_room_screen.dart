@@ -144,11 +144,11 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('초대 링크 토큰', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  const Text('초대 링크 또는 토큰', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(child: _input(inviteLinkTokenController, 'inviteLinkToken', enabled: !isPreviewLoading)),
+                      Expanded(child: _input(inviteLinkTokenController, '초대 링크를 붙여넣어 주세요', enabled: !isPreviewLoading)),
                       const SizedBox(width: 8),
                       SizedBox(
                         height: 52,
@@ -166,6 +166,32 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
                   _input(inviteCodeController, '6자리 초대 코드'),
                   const SizedBox(height: 24),
                   _previewCard(p),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBEB),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFDE68A)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Row(children: [
+                          Icon(Icons.info_outline, color: Color(0xFFF97316), size: 16),
+                          SizedBox(width: 8),
+                          Text('참여 전 꼭 확인하세요',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF92400E))),
+                        ]),
+                        SizedBox(height: 8),
+                        Text('• 방 참여 후 예치금을 납부해야 미션에 참여할 수 있어요.',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF92400E))),
+                        SizedBox(height: 4),
+                        Text('• 멤버가 서로 인증을 확인해야 성공으로 인정돼요.',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF92400E))),
+                      ],
+                    ),
+                  ),
                   if (errorMessage != null) ...[
                     const SizedBox(height: 12),
                     Text(errorMessage!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13)),
@@ -216,7 +242,7 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
     final members = p == null ? '3/5명' : '${p.currentMemberCount}/${p.maxMembers}명';
     final point = p == null ? '10,000P' : UiMappers.point(p.stakePoint);
     final type = p?.proofFrequencyType ?? 'DAILY';
-    final goal = p == null ? '하루 2회' : UiMappers.frequencyGoal(p.proofFrequencyType, p.requiredProofCount);
+    final goal = p == null ? '하루 2회 인증' : UiMappers.frequencyGoalLabel(p.proofFrequencyType, p.requiredProofCount);
     final status = p == null ? '참여 가능' : (p.joinable ? '참여 가능' : UiMappers.statusLabel(p.status));
 
     return Container(
@@ -232,11 +258,11 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
             Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), decoration: BoxDecoration(color: const Color(0xFF3B82F6), borderRadius: BorderRadius.circular(12)), child: Text(status, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600))),
           ]),
           const SizedBox(height: 20),
-          Row(children: [Expanded(child: _buildInfoCard(Icons.people_outline, const Color(0xFF3B82F6), '현재 인원', members)), const SizedBox(width: 12), Expanded(child: _buildInfoCard(Icons.attach_money, const Color(0xFFEAB308), '예치 포인트', point))]),
+          Row(children: [Expanded(child: _buildInfoCard(Icons.people_outline, const Color(0xFF3B82F6), '현재 인원', members)), const SizedBox(width: 12), Expanded(child: _buildInfoCard(Icons.account_balance_wallet_outlined, const Color(0xFFEAB308), '예치 포인트', point))]),
           const SizedBox(height: 12),
-          Row(children: [Expanded(child: _buildInfoCard(Icons.calendar_today_outlined, const Color(0xFF22C55E), '방식', type, compact: true)), const SizedBox(width: 12), Expanded(child: _buildInfoCard(Icons.track_changes, const Color(0xFF8B5CF6), '목표', goal, compact: true))]),
+          Row(children: [Expanded(child: _buildInfoCard(Icons.calendar_today_outlined, const Color(0xFF22C55E), '방식', UiMappers.frequencyTypeLabel(type), compact: true)), const SizedBox(width: 12), Expanded(child: _buildInfoCard(Icons.track_changes, const Color(0xFF8B5CF6), '목표', goal, compact: true))]),
           const SizedBox(height: 12),
-          _buildInfoCard(Icons.access_time, const Color(0xFFEF4444), '마감 시간', '매일 ${p?.deadlineTime ?? '23:00'}'),
+          _buildInfoCard(Icons.access_time, const Color(0xFFEF4444), '마감 시간', UiMappers.deadlineLabel(type, p?.deadlineTime ?? '23:00')),
         ],
       ),
     );
