@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/point_service.dart';
 import '../../services/proof_service.dart';
 import '../../services/room_service.dart';
@@ -32,4 +33,8 @@ final pointServiceProvider = Provider<PointService>((ref) {
 
 final proofServiceProvider = Provider<ProofService>((ref) {
   return ProofService(apiClient: ref.watch(apiClientProvider));
+});
+
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  return NotificationService(apiClient: ref.watch(apiClientProvider));
 });

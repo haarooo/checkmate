@@ -70,6 +70,12 @@
     - NEED_MORE: IN_PROGRESS + confirmedCount < requiredSuccessCount + submittedCount < requiredSuccessCount
     - FAILED: SETTLED + confirmedCount < requiredSuccessCount
 - `GET /api/rooms/{roomId}/activities` 방 활동 피드 조회 (방 멤버만, 비멤버 403, 없는 방 404)
+  - createdAt DESC 정렬, 최근 50건 고정 조회
+  - 응답: id, roomId, actorId(nullable), actorNickname(nullable), type, message, createdAt
+  - MEMBER_JOINED / MEMBER_STAKED / ROOM_READY / ROOM_STARTED / PROOF_SUBMITTED / PROOF_CONFIRMED / ROOM_SETTLED 7종 이벤트 자동 기록
+  - 기록 위치: joinRoom / stakeRoom / startRoom / submitProof / confirmProof / settle 성공 직후, 같은 트랜잭션 내
+  - ROOM_READY / ROOM_SETTLED는 actor null (시스템 이벤트)
+  - actor가 필요한 타입에 null 전달 시 IllegalArgumentException (방어적 처리)
 - `GET /api/notifications` 내 알림 목록 조회 (최신순 50건 고정)
   - 응답: id, roomId(nullable), type, title, message, read(boolean), readAt(nullable), createdAt
 - `GET /api/notifications/unread-count` 읽지 않은 알림 수 조회 → { unreadCount }
@@ -82,12 +88,18 @@
 - `DELETE /api/device-tokens` FCM 토큰 비활성화 (request body로 token 전달, 204 No Content)
   - row 삭제 아닌 active=false 처리 (재로그인 시 재활성화 가능)
   - 타인 token 비활성화 → 403, 없는 token → 404
-  - createdAt DESC 정렬, 최근 50건 고정 조회
-  - 응답: id, roomId, actorId(nullable), actorNickname(nullable), type, message, createdAt
-  - MEMBER_JOINED / MEMBER_STAKED / ROOM_READY / ROOM_STARTED / PROOF_SUBMITTED / PROOF_CONFIRMED / ROOM_SETTLED 7종 이벤트 자동 기록
-  - 기록 위치: joinRoom / stakeRoom / startRoom / submitProof / confirmProof / settle 성공 직후, 같은 트랜잭션 내
-  - ROOM_READY / ROOM_SETTLED는 actor null (시스템 이벤트)
-  - actor가 필요한 타입에 null 전달 시 IllegalArgumentException (방어적 처리)
+- Firebase Admin SDK 초기화 (`global/config/FirebaseConfig`): `GOOGLE_APPLICATION_CREDENTIALS` 환경변수 기반, `@PostConstruct`
+- `POST /api/dev/fcm/send` 개발 확인용 FCM 수동 발송 (인증 필요, 실 서비스 아님)
+  - 주의: dev profile 제한 또는 삭제 미완료 — 추후 처리 필요
+- Notification 저장 후 AFTER_COMMIT FCM 자동 발송 구조
+  - `NotificationService.notify()`: Notification 저장 → `NotificationFcmEvent` 발행
+  - `NotificationFcmEventListener` `@TransactionalEventListener(AFTER_COMMIT)`: active token 순회 발송
+  - FCM data payload: notificationId, type, roomId(nullable), actorId(nullable), actorNickname(nullable)
+  - 발송 대상: ROOM_STARTED(전 멤버), PROOF_SUBMITTED(제출자 제외 전 멤버), PROOF_CONFIRMED(인증 작성자), ROOM_SETTLED(전 멤버)
+  - 방 입장 / 예치금 납부는 notify() 미호출 → FCM 알림 없음
+- 무효 FCM token 자동 비활성화
+  - `MessagingErrorCode.UNREGISTERED` 또는 `INVALID_ARGUMENT` 응답 시 해당 token active=false
+  - `deactivateInvalidToken()` → `Propagation.REQUIRES_NEW` 별도 트랜잭션으로 처리
 - Local File Upload 인프라 구성 (API 없음, 8단계 Proof Submit에서 실제 사용)
   - 허용: 이미지(jpg/jpeg/png/gif/webp) + 동영상(mp4/mov/webm)
   - 저장 위치: 프로젝트 루트 uploads/proofs/, storedName=UUID+확장자
@@ -137,18 +149,24 @@
 - `domain/notification/` 패키지 (신규)
   - entity: `NotificationType` (4종 enum: PROOF_SUBMITTED/PROOF_CONFIRMED/ROOM_STARTED/ROOM_SETTLED), `Notification` (BaseTime 상속, receiver NOT NULL, room nullable, readAt nullable, markAsRead() idempotent)
   - repository: `NotificationRepository` (findTop50ByReceiverOrderByCreatedAtDesc, countByReceiverAndReadAtIsNull, @Modifying markAllAsRead JPQL bulk)
-  - service: `NotificationService` (notify() + getMyNotifications() + getUnreadCount() + markAsRead() + markAllAsRead())
+  - service: `NotificationService` (notify() + getMyNotifications() + getUnreadCount() + markAsRead() + markAllAsRead(), ApplicationEventPublisher 주입, notify()에서 NotificationFcmEvent 발행)
   - controller: `NotificationController` (GET /, GET /unread-count, PUT /{id}/read, PUT /read-all)
   - dto: `NotificationResponse` (static from() 팩토리), `UnreadCountResponse`
+  - event: `NotificationFcmEvent` (record: notificationId, receiverUserId, type, title, body, data)
+  - event: `NotificationFcmEventListener` (AFTER_COMMIT, active token 순회 발송, UNREGISTERED/INVALID_ARGUMENT → deactivateInvalidToken())
 - `RoomService`: NotificationService 주입 추가, startRoom에 전 멤버 ROOM_STARTED 알림 연결
 - `ProofService`: NotificationService 주입 추가, submitProof에 제출자 제외 전 멤버 PROOF_SUBMITTED 알림, confirmProof에 인증 작성자 PROOF_CONFIRMED 알림 연결
 - `SettlementService`: NotificationService 주입 추가, settle에 전 멤버 ROOM_SETTLED 알림 연결
 - `domain/device/` 패키지 (신규)
   - entity: `DevicePlatform` (3종 enum: ANDROID/IOS/WEB), `DeviceToken` (BaseTime 상속, token UNIQUE length=512, active boolean, reactivate()/reassign()/deactivate() 메서드)
-  - repository: `DeviceTokenRepository` (findByToken, findByUserAndToken, findAllByUserAndActiveTrue)
-  - service: `DeviceTokenService` (register() upsert + deactivate() + findActiveTokens() 18-2 예정)
+  - repository: `DeviceTokenRepository` (findByToken, findAllByUserAndActiveTrue, deactivateByToken JPQL update)
+  - service: `DeviceTokenService` (register() upsert + deactivate() + findActiveTokens() + deactivateInvalidToken() REQUIRES_NEW)
   - controller: `DeviceTokenController` (POST /, DELETE / request body)
   - dto: `DeviceTokenRegisterRequest`, `DeviceTokenDeactivateRequest`, `DeviceTokenResponse`
+- `global/config/FirebaseConfig` (신규): Firebase Admin SDK `@PostConstruct` 초기화 (GOOGLE_APPLICATION_CREDENTIALS 환경변수)
+- `domain/fcm/` 패키지 (신규)
+  - service: `FcmService` (sendToToken() 단일 token 발송, FirebaseMessagingException → IllegalStateException 래핑, maskToken 로그 마스킹)
+  - controller: `FcmController` (POST /api/dev/fcm/send, 개발용)
 
 ## inviteLinkToken / inviteCode 설계 확정
 
@@ -291,6 +309,23 @@
 - blank token → 400 확인
 - invalid platform → 400 확인
 
+## 18-2단계 Firebase Admin SDK + FcmService 테스트 완료 내용
+- 빌드 성공, 서버 실행 정상
+- Firebase Admin SDK @PostConstruct 초기화 확인 (GOOGLE_APPLICATION_CREDENTIALS 환경변수)
+- POST /api/dev/fcm/send → 실제 FCM token으로 Android 에뮬레이터 푸시 수신 성공
+
+## 18-3단계 Notification + FCM 자동 발송 연결 테스트 완료 내용
+- 빌드 성공, 서버 실행 정상
+- ROOM_STARTED 트리거 → 전 멤버 FCM 자동 발송 수신 확인
+- PROOF_SUBMITTED / PROOF_CONFIRMED / ROOM_SETTLED 도 notify() 경유 FCM 대상
+- 방 입장 / 예치금 납부는 notify() 미호출 → FCM 알림 없음 (정상)
+- NotificationFcmEvent AFTER_COMMIT 구조: DB 롤백 시 FCM 미발송 보장
+
+## 18-3단계 보강: 무효 FCM token 비활성화 테스트 완료 내용
+- Firebase UNREGISTERED / INVALID_ARGUMENT 반환 시 해당 token active=false 자동 처리
+- deactivateByToken JPQL update, REQUIRES_NEW 별도 트랜잭션으로 커밋
+- 실제 DB active=0 반영 확인
+
 ## 17단계 Notification DB + API 테스트 완료 내용
 - 빌드 성공, 서버 실행 정상
 - 방 시작 → 전 멤버 ROOM_STARTED 알림 생성 확인
@@ -316,10 +351,14 @@
 - 없는 방 GET activities → 404 확인
 
 ## 다음 단계
-- 18-2단계: Firebase Admin SDK + FcmService (다음 작업 — 18-1 DeviceToken DB + API 완료)
-- 19단계: Room Chat WebSocket/STOMP
-- 20단계: Mission Progress Board
-- 21단계: Settlement Share Card
+- 19단계: NotificationScreen / 알림함 프론트 연동
+- 20단계: ActivityFeedScreen
+- 21단계: Room Chat WebSocket/STOMP
+- 22단계: Mission Progress Board
+- 23단계: Settlement Share Card
+
+## 주의사항 (잔여)
+- `POST /api/dev/fcm/send`: dev profile 제한 또는 삭제 미완료 — 현재는 인증만 필요한 상태
 
 ## 문서 상태
 research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`, `16_room_activity`, `17_notification`, `18_1_device_token`

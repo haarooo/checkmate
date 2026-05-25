@@ -1,6 +1,6 @@
 # FRONTEND_CURRENT_STATE.md
 
-마지막 업데이트: 2026-05-24
+마지막 업데이트: 2026-05-25
 
 ---
 
@@ -58,6 +58,7 @@
 | `/rooms/:roomId/members` | MemberStatusScreen |
 | `/rooms/:roomId/submit-proof` | SubmitProofScreen |
 | `/rooms/:roomId/proofs` | ProofFeedScreen |
+| `/notifications` | NotificationScreen |
 | `/mypage` | MyPageScreen |
 
 ---
@@ -75,6 +76,12 @@
 - 인증 제출 (`POST /api/rooms/{roomId}/proofs`, multipart/form-data)
 - 인증 피드 조회 (`GET /api/rooms/{roomId}/proofs`, 실제 API 연결 완료)
 - 인증 확인 (`POST /api/proofs/{proofId}/confirm`)
+- 알림함 목록 조회 (`GET /api/notifications`) 성공
+- 알림 클릭 읽음 처리 (`PUT /api/notifications/{id}/read`) 성공
+- 모두 읽음 처리 (`PUT /api/notifications/read-all`) 성공
+- roomId 기반 알림 → 방 상세 이동 성공
+- 홈 화면 알림 unread badge 표시 및 갱신 성공
+- Android 에뮬레이터 ROOM_STARTED 알림 수신 후 알림함 확인 성공
 
 ### 현재 오류
 - 없음 (알려진 TypeError 모두 해결, 에러 메시지 사용자 친화적으로 개선 완료)
@@ -141,6 +148,9 @@ id: _readInt(json['roomId'] ?? json['id']),
 - 앱 설명 카드 (`_appDescriptionCard()`): 포인트 카드 아래 고정 표시
   - 포인트 3개: "예치금으로 책임감 만들기" / "멤버끼리 서로 인증을 확인" / "성공하면 예치금 반환 + 보상"
 - 방 카드: `stakePointLabel`, `frequencyTypeLabel`, `frequencyGoalLabel` 사용
+- 알림 벨 아이콘 (`_bellIcon()`): 상단 우측, unread count 빨간 배지 (99+까지 표시)
+- unread count 갱신: 홈 로드 시 `_refreshUnreadCount()` fire-and-forget, 알림함 복귀 시 `.then()`으로 재갱신
+- `_refreshUnreadCount()` 실패 시 기존 값 유지 (홈 로딩에 영향 없음)
 
 ### room_dashboard_screen.dart
 - 위젯 순서: `_missionSummaryCard` → `_ruleCard` → `_todayStatusCard` → `_myStatusCard` → `_memberPreviewCard` → `_inviteCard`
@@ -150,7 +160,8 @@ id: _readInt(json['roomId'] ?? json['id']),
 - `_todayStatusCard` 설명 문구: `'확인 완료된 인증만 목표 달성에 반영돼요.'`
 - `_myStatusCard`: progressStatus 기반 배지 + `proofProgressDescription` 설명 문구
 - `_memberPreviewCard`: `todayStatus['members']` 우선, 없으면 members fallback. `progressStatus ?? expectedResult ?? status` 순서로 상태 읽기. role 표시 포함
-- 초대 카드: 초대코드 + 초대링크 각각 복사 버튼, URL: `'${Uri.base.origin}/#/invite/$token'`
+- 초대 카드: 초대코드 + 초대링크 각각 복사 버튼
+- `_buildInviteLink(String token)` helper: Android(`file://` scheme)에서 `Uri.base.origin` crash 방지, http/https일 때만 origin 사용, 그 외 상대경로(`/invite/$token`) 반환
 
 ### join_room_screen.dart
 - `_extractInviteToken()`: 전체 URL 붙여넣기 시 토큰만 추출
@@ -199,6 +210,29 @@ id: _readInt(json['roomId'] ?? json['id']),
 - `ProofConfirmationRepository.countByProof` 추가
 - `ProofService.getProofFeed` 추가
 
+### notification_model.dart (신규)
+- 필드: `id`, `roomId`(nullable), `type`, `title`, `message`, `read`, `readAt`(nullable), `createdAt`
+- `fromJson`: 모든 필드 null-safe 처리
+- `copyWith`: `read`, `readAt` 낙관적 업데이트용
+
+### notification_service.dart (신규)
+- `getNotifications()`: `GET /api/notifications` → `List<NotificationModel>`
+- `getUnreadCount()`: `GET /api/notifications/unread-count` → `int`
+- `markAsRead(int id)`: `PUT /api/notifications/{id}/read`
+- `markAllAsRead()`: `PUT /api/notifications/read-all`
+
+### app_providers.dart (수정)
+- `notificationServiceProvider` 추가
+
+### notification_screen.dart (신규)
+- `ConsumerStatefulWidget` 기반
+- 필터 chip: '전체' / '읽은 알림' 토글
+- 낙관적 읽음 처리: 실패 시 rollback + snackbar, 이동 없음
+- "모두 읽음": unread 없으면 `onPressed: null` 비활성
+- 카드 클릭: 이미 읽음이면 바로 이동, 미읽음이면 API 성공 후 이동
+- roomId null이면 읽음 처리만, 이동 없음
+- type emoji: ROOM_STARTED🚀 / PROOF_SUBMITTED📷 / PROOF_CONFIRMED✅ / ROOM_SETTLED🏆
+
 ---
 
 ## 8. 백엔드 연결 기준
@@ -217,6 +251,15 @@ Flutter `baseUrl`은 실행 환경별로 다르다.
 - CORS 설정 / OPTIONS 허용 완료
 - `Authorization: Bearer accessToken` 방식
 - 토큰 자동 첨부: `lib/core/network/api_client.dart` Interceptor 처리
+- 공개 API (signup / login)는 토큰 첨부 스킵 (`isPublicAuthApi` 분기 추가)
+
+`api_constants.dart` 변경사항:
+- `baseUrl`이 `static const String` → `static String get` (플랫폼별 동적 반환)으로 변경
+- Web: `http://localhost:8080`, Android 에뮬레이터: `http://10.0.2.2:8080`, 기타: `http://localhost:8080`
+
+`AndroidManifest.xml` 변경사항:
+- `<uses-permission android:name="android.permission.INTERNET"/>` 추가
+- `android:usesCleartextTraffic="true"` 추가 (HTTP 로컬 개발 서버 접근 허용)
 
 ---
 
@@ -226,6 +269,8 @@ Flutter `baseUrl`은 실행 환경별로 다르다.
 2. `docs/CURRENT_STATE.md` 읽어서 백엔드 현황 파악
 3. 코드 수정 전 변경 미리보기 제시
 4. 내가 Yes 하기 전까지 적용하지 않기
+
+19단계(NotificationScreen) 완료 — 다음 작업: 20단계 ActivityFeedScreen
 
 ---
 
@@ -237,7 +282,7 @@ Flutter `baseUrl`은 실행 환경별로 다르다.
 
 ---
 
-## 12. Firebase / FCM 프론트 초기 설정 완료
+## 11. Firebase / FCM 프론트 초기 설정 완료
 
 ### 완료 내용
 - Firebase CLI 로그인 완료
@@ -268,34 +313,65 @@ Flutter `baseUrl`은 실행 환경별로 다르다.
 | `android/app/build.gradle.kts` | `com.google.gms.google-services` plugin 적용 |
 | `android/app/src/main/AndroidManifest.xml` | `POST_NOTIFICATIONS` 권한 추가 |
 
-### 확인 결과
+### 검증 결과
 - Web: `Firebase initialized on Web` 콘솔 로그 확인
-- Android 에뮬레이터: FCM TOKEN 발급 확인
-
-### 다음 백엔드 작업 (18단계)
-- DeviceToken Entity / API (`POST /api/device-tokens`, `DELETE /api/device-tokens`)
-- Firebase Admin SDK 서버 설정
-- Notification 저장 후 FCM 발송 이벤트 연결
+- Android 에뮬레이터 FCM TOKEN 발급 확인
+- FCM 권한 `AuthorizationStatus.authorized` 확인
 
 ---
 
-## 11. 2차 프론트 계획
+## 12. 18-4단계 Flutter DeviceToken API 연결 완료
+
+### 구현 위치
+- `device_token_service.dart` 미존재 — FCM device token 기능이 `auth_service.dart`에 직접 구현됨
+
+### 로그인 흐름
+1. `tokenStorage.saveAccessToken()` — accessToken 먼저 저장 (device-tokens API는 인증 필요)
+2. `registerCurrentDeviceTokenSafely()` 호출
+   - kIsWeb → 스킵
+   - `_currentPlatform()` null (Android/iOS 외) → 스킵
+   - `FirebaseMessaging.instance.requestPermission()` 권한 요청
+   - `FirebaseMessaging.instance.getToken()` 토큰 발급
+   - `POST /api/device-tokens` 호출 (`token`, `platform` 전달)
+   - 실패해도 예외 밖으로 던지지 않음 (로그인 차단 방지)
+
+### 로그아웃 흐름
+1. `deactivateCurrentDeviceTokenSafely()` — `DELETE /api/device-tokens` 호출 (active=false)
+2. `tokenStorage.clearAccessToken()` — 로컬 토큰 삭제
+   - FCM 비활성화 실패해도 로그아웃 계속 진행
+
+### 세션 복구 (앱 재진입)
+- `auth_controller.dart restoreSession()`: getMe() 성공 후 `registerCurrentDeviceTokenSafely()` 호출
+- 앱 재진입 시에도 device token 서버 동기화
+
+### 후속 보강 (미완료)
+- `FirebaseMessaging.instance.onTokenRefresh` 핸들러 미구현 → 토큰 갱신 시 자동 재등록 안 됨, 다음 로그인에 반영됨
+- `device_token_service.dart` 별도 파일 분리 미완료 — 현재는 `auth_service.dart`에 직접 구현
+
+### 검증 결과
+- 로그인 후 device_tokens.active=1 저장 확인
+- 로그아웃 후 active=0 확인
+- 재로그인 후 active=1 재활성화 확인
+
+---
+
+## 13. 2차 프론트 계획
 
 2차 프론트 기능 후보:
 
-1. ActivityFeedScreen
+1. ✅ NotificationScreen (19단계 완료)
+   - 알림 목록 조회 / 읽음 처리 / 미확인 배지
+   - 홈 화면 알림 아이콘 연결
+   - roomId 있으면 방 상세 이동
+
+2. ActivityFeedScreen
    - 방 활동 피드 표시
    - 방 참여, 예치, 시작, 인증 제출, 인증 확인, 정산 완료 이벤트
 
-2. NotificationScreen
-   - 알림 목록
-   - 읽음 처리
-   - 미확인 알림 배지
-
-3. FCM 연동
-   - firebase_messaging 추가
-   - FCM token 등록 API 호출
-   - foreground/background 알림 처리
+3. FCM foreground/background 처리 및 push 클릭 이동
+   - 앱 포그라운드 수신 처리
+   - 백그라운드 / 종료 상태 수신 처리
+   - 푸시 클릭 시 방 상세 또는 알림함 이동
 
 4. RoomChatScreen
    - WebSocket/STOMP 연결

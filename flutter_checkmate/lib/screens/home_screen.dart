@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/network/api_client.dart';
 import '../core/providers/app_providers.dart';
+import '../core/theme/app_colors.dart';
 import '../core/utils/ui_mappers.dart';
 import '../models/point_model.dart';
 import '../models/room_model.dart';
@@ -21,6 +22,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String? errorMessage;
   PointWalletModel? wallet;
   List<RoomSummaryModel> rooms = [];
+  int _unreadCount = 0;
 
   @override
   void initState() {
@@ -52,6 +54,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
+
+    // 알림 unread count는 홈 로딩과 분리해서 조회한다.
+    // 실패해도 홈 화면 자체는 정상 표시된다.
+    _refreshUnreadCount();
+  }
+
+  Future<void> _refreshUnreadCount() async {
+    try {
+      final count = await ref.read(notificationServiceProvider).getUnreadCount();
+      if (mounted) setState(() => _unreadCount = count);
+    } catch (_) {
+      // 실패 시 기존 값 유지
+    }
   }
 
   @override
@@ -65,9 +80,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Container(
                 color: Colors.white,
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-                child: const Row(
+                child: Row(
                   children: [
-                    Text('내 미션방', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF111827))),
+                    const Expanded(
+                      child: Text('내 미션방', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF111827))),
+                    ),
+                    _bellIcon(),
                   ],
                 ),
               ),
@@ -328,6 +346,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildInfoItem(IconData icon, String text) {
     return Row(children: [Icon(icon, size: 16, color: const Color(0xFF9CA3AF)), const SizedBox(width: 8), Flexible(child: Text(text, style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280))))]);
+  }
+
+  Widget _bellIcon() {
+    final label = _unreadCount > 99 ? '99+' : '$_unreadCount';
+    return GestureDetector(
+      onTap: () => context.push('/notifications').then((_) => _refreshUnreadCount()),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(4),
+            child: Icon(Icons.notifications_none_outlined, size: 26, color: Color(0xFF374151)),
+          ),
+          if (_unreadCount > 0)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.error,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                child: Text(
+                  label,
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   Widget _buildNavItem(IconData icon, String label, bool isActive, {VoidCallback? onTap}) {

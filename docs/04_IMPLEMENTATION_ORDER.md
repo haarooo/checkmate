@@ -53,24 +53,42 @@
     - 미확인 개수 조회.
     - 단건 읽음.
     - 전체 읽음.
-18. DeviceToken + FCM:
-    - DeviceToken 엔티티.
-    - FCM token 등록/비활성화.
-    - 이벤트 발생 시 Notification 저장 + FCM 발송.
-    - FCM 실패가 원본 트랜잭션 실패로 이어지지 않게 처리.
-19. Room Chat WebSocket/STOMP:
+18. DeviceToken + FCM: ✅ 완료
+    - DeviceToken 엔티티/API (POST /api/device-tokens, DELETE /api/device-tokens).
+    - Flutter 로그인 시 FCM token 등록, 로그아웃 시 active=false.
+    - Firebase Admin SDK + FcmService.
+    - Notification 저장 후 AFTER_COMMIT FCM 발송.
+    - UNREGISTERED / INVALID_ARGUMENT token active=false 처리.
+    - 실제 Android 에뮬레이터 푸시 수신 검증.
+    - 후속 보강: onTokenRefresh 핸들러, device_token_service.dart 분리.
+19. NotificationScreen / 알림함 프론트 연동:
+    - Flutter NotificationModel.
+    - NotificationService.
+    - GET /api/notifications 연동.
+    - GET /api/notifications/unread-count 연동.
+    - PUT /api/notifications/{notificationId}/read 연동.
+    - PUT /api/notifications/read-all 연동.
+    - 홈 화면 알림 아이콘 / 미확인 배지.
+    - 알림 클릭 시 읽음 처리.
+    - roomId가 있으면 방 상세 이동 기반 마련.
+20. ActivityFeedScreen:
+    - GET /api/rooms/{roomId}/activities 연동.
+    - 방 참여/예치/READY/시작/인증 제출/인증 확인/정산 이벤트 표시.
+    - 방 상세 화면에서 활동 피드 진입.
+    - 최신순 50건 표시.
+21. Room Chat WebSocket/STOMP:
     - RoomMessage 엔티티.
     - GET `/api/rooms/{roomId}/messages`.
     - `/ws` 연결.
     - `/topic/rooms/{roomId}/messages` 구독.
     - `/app/rooms/{roomId}/messages` 전송.
     - 방 멤버 권한 검증.
-20. Mission Progress Board:
+22. Mission Progress Board:
     - 기존 today-status / members-stats 활용.
     - 방 전체 진행률.
     - 목표 완료/확인 대기/제출 필요 인원 표시.
     - 멤버별 진행 상태 시각화.
-21. Settlement Share Card:
+23. Settlement Share Card:
     - 개인 결과 카드.
     - 그룹 결과 카드.
     - Flutter 카드 UI.

@@ -9,6 +9,7 @@ import '../screens/join_room_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/member_status_screen.dart';
 import '../screens/my_page_screen.dart';
+import '../screens/notification_screen.dart';
 import '../screens/proof_feed_screen.dart';
 import '../screens/room_dashboard_screen.dart';
 import '../screens/signup_screen.dart';
@@ -106,6 +107,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           if (roomId == null) return const AppContainer(child: _InvalidRoomIdScreen());
           return AppContainer(child: ProofFeedScreen(roomId: roomId));
         },
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const AppContainer(child: NotificationScreen()),
       ),
       GoRoute(
         path: '/mypage',

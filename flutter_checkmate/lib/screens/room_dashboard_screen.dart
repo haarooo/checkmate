@@ -510,7 +510,7 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
                   child: Text('/invite/$token', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Color(0xFF1E40AF))),
                 ),
                 GestureDetector(
-                  onTap: () => _copyText('${Uri.base.origin}/#/invite/$token', '초대링크가 복사되었습니다.'),
+                  onTap: () => _copyText(_buildInviteLink(token), '초대링크가 복사되었습니다.'),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(6)),
@@ -522,6 +522,17 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
         ],
       ),
     );
+  }
+
+  String _buildInviteLink(String inviteLinkToken) {
+    if (inviteLinkToken.isEmpty) return '';
+    final base = Uri.base;
+    if (base.scheme == 'http' || base.scheme == 'https') {
+      return '${base.origin}/#/invite/$inviteLinkToken';
+    }
+    // Android/iOS 앱 환경: file:// 스킴이라 origin 호출 불가
+    // deep link 미구현 상태이므로 경로 형태로 복사 (crash 방지)
+    return '/invite/$inviteLinkToken';
   }
 
   Future<void> _copyText(String text, String message) async {
