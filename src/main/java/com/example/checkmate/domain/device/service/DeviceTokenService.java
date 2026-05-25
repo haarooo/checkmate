@@ -11,6 +11,7 @@ import com.example.checkmate.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -115,5 +116,18 @@ public class DeviceTokenService {
     private UserEntity findUser(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void deactivateInvalidToken(String token) {
+        if (token == null || token.isBlank()) {
+            return;
+        }
+
+        int updatedCount = deviceTokenRepository.deactivateByToken(token);
+
+        if (updatedCount == 0) {
+            return;
+        }
     }
 }

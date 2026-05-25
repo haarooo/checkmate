@@ -17,10 +17,20 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await tokenStorage.getAccessToken();
-          if (token != null && token.isNotEmpty) {
-            options.headers['Authorization'] = 'Bearer $token';
+          final path = options.path;
+
+          // 회원가입/로그인은 토큰이 필요 없는 공개 API다.
+          // 앱에 예전 토큰이 남아 있어도 Authorization 헤더를 붙이지 않는다.
+          final isPublicAuthApi =
+              path.contains('/users/signup') || path.contains('/users/login');
+
+          if (!isPublicAuthApi) {
+            final token = await tokenStorage.getAccessToken();
+            if (token != null && token.isNotEmpty) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
           }
+
           handler.next(options);
         },
         onError: (error, handler) async {

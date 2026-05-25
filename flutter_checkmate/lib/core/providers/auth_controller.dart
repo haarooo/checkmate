@@ -42,6 +42,10 @@ class AuthController extends ChangeNotifier {
 
     try {
       currentUser = await _authService.getMe();
+
+      // 기존 세션 복구 시에도 FCM token을 서버에 동기화한다.
+      await _authService.registerCurrentDeviceTokenSafely();
+
       status = AuthStatus.authenticated;
       errorMessage = null;
     } catch (_) {
