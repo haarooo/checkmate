@@ -43,25 +43,37 @@ class _SubmitProofScreenState extends ConsumerState<SubmitProofScreen> {
 
   Future<void> submitProof() async {
     final content = contentController.text.trim();
+
     if (content.isEmpty && selectedFile == null) {
       setState(() => errorMessage = '텍스트 또는 사진/동영상 중 하나는 필수입니다.');
       return;
     }
 
-    setState(() { isLoading = true; errorMessage = null; });
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
     try {
-      await ref.read(proofServiceProvider).submitProof(roomId: widget.roomId, content: content, file: selectedFile);
+      await ref.read(proofServiceProvider).submitProof(
+        roomId: widget.roomId,
+        content: content,
+        file: selectedFile,
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('인증을 제출했습니다.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('인증을 제출했습니다.')),
+      );
       context.go('/rooms/${widget.roomId}/proofs');
     } catch (e) {
       if (!mounted) return;
       final message = (e is DioException && e.response?.statusCode == 409)
           ? '미션 기간이 아니거나, 마감 시간이 지났거나, 제출 가능 횟수를 초과했습니다.'
           : ApiClient.messageFromError(e);
-      setState(() => errorMessage = message);
-    } finally {
-      if (mounted) setState(() => isLoading = false);
+      setState(() {
+        errorMessage = message;
+        isLoading = false;
+      });
     }
   }
 

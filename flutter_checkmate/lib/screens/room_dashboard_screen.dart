@@ -1,4 +1,5 @@
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -65,17 +66,35 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
     }
   }
 
-  Future<void> stakeRoom() async => _runAction(() => ref.read(roomServiceProvider).stakeRoom(widget.roomId));
-  Future<void> startRoom() async => _runAction(() => ref.read(roomServiceProvider).startRoom(widget.roomId));
+  Future<void> stakeRoom() async => _runAction(
+    () => ref.read(roomServiceProvider).stakeRoom(widget.roomId),
+    customError: (code) {
+      if (code == 400 || code == 409) return '포인트가 부족하거나 이미 예치가 완료되었습니다.';
+      return null;
+    },
+  );
 
-  Future<void> _runAction(Future<RoomDetailModel> Function() action) async {
+  Future<void> startRoom() async => _runAction(
+    () => ref.read(roomServiceProvider).startRoom(widget.roomId),
+    customError: (code) {
+      if (code == 400 || code == 403 || code == 409) return '방을 시작할 수 없습니다. 인원과 예치 상태를 확인해 주세요.';
+      return null;
+    },
+  );
+
+  Future<void> _runAction(
+    Future<RoomDetailModel> Function() action, {
+    String? Function(int? statusCode)? customError,
+  }) async {
     setState(() { isActionLoading = true; errorMessage = null; });
     try {
       await action();
       await loadDashboard();
     } catch (e) {
       if (!mounted) return;
-      setState(() => errorMessage = ApiClient.messageFromError(e));
+      final statusCode = (e is DioException) ? e.response?.statusCode : null;
+      final message = customError?.call(statusCode) ?? ApiClient.messageFromError(e);
+      setState(() => errorMessage = message);
     } finally {
       if (mounted) setState(() => isActionLoading = false);
     }
@@ -99,6 +118,14 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
                   children: [
                     IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/home')),
                     const Spacer(),
+                    // 채팅 아이콘: 상태 배지 왼쪽에 위치
+                    IconButton(
+                      icon: const Icon(Icons.chat_bubble_outline, size: 22),
+                      color: const Color(0xFF3B82F6),
+                      tooltip: '채팅',
+                      onPressed: () => context.push('/rooms/${widget.roomId}/chat'),
+                    ),
+                    const SizedBox(width: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(color: UiMappers.statusColor(currentRoom?.status ?? 'IN_PROGRESS'), borderRadius: BorderRadius.circular(16)),

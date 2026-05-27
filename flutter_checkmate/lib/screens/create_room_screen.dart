@@ -66,23 +66,24 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
 
     try {
       final room = await ref.read(roomServiceProvider).createRoom(
-            title: title,
-            description: description,
-            durationDays: durationDays,
-            deadlineTime: '23:00',
-            targetRate: 80,
-            stakePoint: stakePoint,
-            maxMembers: maxMembers,
-            proofFrequencyType: proofType,
-            requiredProofCount: count,
-          );
+        title: title,
+        description: description,
+        durationDays: durationDays,
+        deadlineTime: '23:00',
+        targetRate: 80,
+        stakePoint: stakePoint,
+        maxMembers: maxMembers,
+        proofFrequencyType: proofType,
+        requiredProofCount: count,
+      );
       if (!mounted) return;
       context.go('/rooms/${room.id}');
     } catch (e) {
       if (!mounted) return;
-      setState(() => errorMessage = ApiClient.messageFromError(e));
-    } finally {
-      if (mounted) setState(() => isLoading = false);
+      setState(() {
+        errorMessage = ApiClient.messageFromError(e);
+        isLoading = false;
+      });
     }
   }
 

@@ -1,4 +1,5 @@
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -47,9 +48,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       context.go('/home');
     } catch (e) {
       if (!mounted) return;
-      setState(() => errorMessage = ApiClient.messageFromError(e));
-    } finally {
-      if (mounted) setState(() => isLoading = false);
+      final message = (e is DioException && e.response?.statusCode == 401)
+          ? '이메일 또는 비밀번호를 확인해 주세요.'
+          : ApiClient.messageFromError(e);
+      setState(() {
+        errorMessage = message;
+        isLoading = false;
+      });
     }
   }
 

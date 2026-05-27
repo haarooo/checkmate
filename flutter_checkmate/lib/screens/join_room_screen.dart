@@ -1,4 +1,5 @@
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -111,9 +112,14 @@ class _JoinRoomScreenState extends ConsumerState<JoinRoomScreen> {
       context.go('/rooms/${room.id}');
     } catch (e) {
       if (!mounted) return;
-      setState(() => errorMessage = ApiClient.messageFromError(e));
-    } finally {
-      if (mounted) setState(() => isLoading = false);
+      final statusCode = (e is DioException) ? e.response?.statusCode : null;
+      final message = (statusCode == 400 || statusCode == 404 || statusCode == 409)
+          ? '초대코드가 올바르지 않거나 참여할 수 없는 방입니다.'
+          : ApiClient.messageFromError(e);
+      setState(() {
+        errorMessage = message;
+        isLoading = false;
+      });
     }
   }
 

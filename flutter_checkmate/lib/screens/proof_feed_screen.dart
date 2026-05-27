@@ -1,8 +1,10 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/constants/api_constants.dart';
+import '../core/network/api_client.dart';
 import '../core/providers/app_providers.dart';
 import '../models/proof_model.dart';
 
@@ -35,7 +37,7 @@ class _ProofFeedScreenState extends ConsumerState<ProofFeedScreen> {
       final items = await ref.read(proofServiceProvider).getProofFeed(widget.roomId);
       if (mounted) setState(() { _items = items; _loading = false; });
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted) setState(() { _error = ApiClient.messageFromError(e); _loading = false; });
     }
   }
 
@@ -52,8 +54,11 @@ class _ProofFeedScreenState extends ConsumerState<ProofFeedScreen> {
       await _silentRefresh();
     } catch (e) {
       if (mounted) {
+        final message = (e is DioException && e.response?.statusCode == 409)
+            ? '이미 확인했거나, 본인 인증은 확인할 수 없습니다.'
+            : ApiClient.messageFromError(e);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('확인 실패: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
         );
       }
     }

@@ -105,6 +105,11 @@
   - 저장 위치: 프로젝트 루트 uploads/proofs/, storedName=UUID+확장자
   - GET /uploads/** 정적 파일 서빙 (WebConfig), SecurityConfig permitAll 사용자 직접 추가
   - .gitignore에 uploads/ 추가
+- WebSocket/STOMP 백엔드 구현 (20-1단계, STOMP 통합 테스트 미완료)
+  - `GET /api/rooms/{roomId}/messages` (최근 50건 ASC 반환, 방 멤버만, 비멤버 403)
+  - STOMP endpoint: /ws (SockJS 미사용), send: /app/rooms/{roomId}/messages, subscribe: /topic/rooms/{roomId}/messages
+  - StompChannelInterceptor: CONNECT 시 Authorization Bearer JWT 검증 후 Principal 등록
+  - SecurityConfig /ws/** permitAll 추가 (HTTP 핸드셰이크 허용, STOMP 인증은 Interceptor 전담)
 
 주의:
 - 위 기능을 처음부터 다시 만들지 않는다.
@@ -167,6 +172,16 @@
 - `domain/fcm/` 패키지 (신규)
   - service: `FcmService` (sendToToken() 단일 token 발송, FirebaseMessagingException → IllegalStateException 래핑, maskToken 로그 마스킹)
   - controller: `FcmController` (POST /api/dev/fcm/send, 개발용)
+- `domain/chat/` 패키지 (신규)
+  - entity: `RoomMessage` (BaseTime 상속, room/sender LAZY FK, content TEXT NOT NULL, create() 팩토리)
+  - repository: `RoomMessageRepository` (findTop50ByRoomOrderByCreatedAtDesc)
+  - service: `ChatService` (getMessages() readOnly + Collections.reverse() + send() @Transactional, validateRoomMember → 비멤버 403)
+  - controller: `RoomChatRestController` (GET /api/rooms/{roomId}/messages), `RoomChatWebSocketController` (@MessageMapping, @DestinationVariable, Principal, SimpMessagingTemplate broadcast)
+  - dto: `ChatMessageRequest` (@NotBlank content), `ChatMessageResponse` (id/roomId/senderId/senderNickname/content/createdAt, from() 팩토리)
+- `global/websocket/` 패키지 (신규)
+  - `WebSocketConfig`: /ws endpoint (SockJS 없음), enableSimpleBroker(/topic), setApplicationDestinationPrefixes(/app), allowedOriginPatterns(localhost/127.0.0.1/10.0.2.2)
+  - `StompChannelInterceptor`: CONNECT 프레임 Authorization 헤더 추출 → JwtTokenProvider.validateToken() + getEmail() → UsernamePasswordAuthenticationToken → setUser(authentication) 등록
+- `SecurityConfig` 수정: /ws/** permitAll 추가
 
 ## inviteLinkToken / inviteCode 설계 확정
 
@@ -351,15 +366,59 @@
 - 없는 방 GET activities → 404 확인
 
 ## 다음 단계
-- 19단계: NotificationScreen / 알림함 프론트 연동
-- 20단계: ActivityFeedScreen
-- 21단계: Room Chat WebSocket/STOMP
+- 20-1단계: Room Chat WebSocket/STOMP 백엔드 구현 — 코드 구현 완료, STOMP 통합 테스트 필요
+- 20-2단계: Flutter RoomChatScreen 연결
+- 21단계: ActivityFeedScreen
 - 22단계: Mission Progress Board
 - 23단계: Settlement Share Card
+
+## 20-1단계 Room Chat WebSocket/STOMP 백엔드 구현 내용 (STOMP 통합 테스트 미완료)
+
+### 구현 완료 파일
+- `build.gradle`: spring-boot-starter-websocket 추가
+- `global/security/SecurityConfig.java`: /ws/** permitAll 추가
+- `global/websocket/WebSocketConfig.java`
+- `global/websocket/StompChannelInterceptor.java`
+- `domain/chat/entity/RoomMessage.java`
+- `domain/chat/repository/RoomMessageRepository.java`
+- `domain/chat/dto/ChatMessageRequest.java`, `ChatMessageResponse.java`
+- `domain/chat/service/ChatService.java`
+- `domain/chat/controller/RoomChatRestController.java`
+- `domain/chat/controller/RoomChatWebSocketController.java`
+
+### REST API
+- `GET /api/rooms/{roomId}/messages`: 방 멤버만 접근(비멤버 403), createdAt DESC 50건 조회 후 reverse → ASC(오래된 순) 반환
+
+### STOMP 주소
+- endpoint: `/ws` (SockJS 없음)
+- 전송: `/app/rooms/{roomId}/messages`
+- 구독: `/topic/rooms/{roomId}/messages`
+
+### 인증/권한 구조
+- HTTP REST: 기존 JwtAuthenticationFilter, `Authentication.getName()` → email
+- WebSocket HTTP 핸드셰이크: SecurityConfig `/ws/**` permitAll
+- STOMP CONNECT: StompChannelInterceptor → `Authorization: Bearer {token}` 추출 → `JwtTokenProvider.validateToken()` 실패 시 MessageDeliveryException(연결 거부) → `JwtTokenProvider.getEmail()` → UsernamePasswordAuthenticationToken → `setUser(authentication)` Principal 등록
+- STOMP SEND: `principal.getName()`(email) → `ChatService.validateRoomMember()` → 비멤버 예외 throw(저장/broadcast 없음)
+
+### 메시지 저장 구조
+- `RoomMessage`: room(FK), sender(FK), content(TEXT), createdAt
+- sender는 STOMP `principal.getName()`(email) 기반으로 서버가 결정 (클라이언트 입력 아님)
+- 저장 즉시 `/topic/rooms/{roomId}/messages`로 broadcast
+
+### MVP 제외 범위
+- 이미지 메시지, 메시지 삭제/수정, 읽음 처리, 타이핑 표시, 채팅 푸시 알림, 안 읽은 메시지 수
+
+### 남은 테스트 항목
+- room_messages 테이블 생성 확인 (build + 서버 실행)
+- GET /api/rooms/{roomId}/messages 방 멤버 200 / 비멤버 403 확인
+- STOMP CONNECT 정상 token → 성공, principal.getName() 로그 email 확인
+- STOMP CONNECT 잘못된 token → ERROR 프레임(연결 거부) 확인
+- /topic/rooms/{roomId}/messages 구독 후 /app/rooms/{roomId}/messages SEND → DB room_messages 저장 + broadcast 수신 확인
+- 비멤버 SEND → 저장/broadcast 없음 확인
 
 ## 주의사항 (잔여)
 - `POST /api/dev/fcm/send`: dev profile 제한 또는 삭제 미완료 — 현재는 인증만 필요한 상태
 
 ## 문서 상태
-research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`, `16_room_activity`, `17_notification`, `18_1_device_token`
-plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`, `15_second_phase`, `16_room_activity`, `17_notification`, `18_1_device_token`
+research: `00_project_baseline`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`, `16_room_activity`, `17_notification`, `18_1_device_token`, `20_room_chat_websocket`
+plan: `00_user_me`, `01_point`, `02_room_create`, `03_room_join`, `04_room_stake`, `05_room_proof_frequency`, `06_room_start`, `07_local_file_upload`, `08_proof_submit`, `09_proof_confirm`, `10_today_status`, `11_member_stats`, `12_settlement`, `13_query_support`, `14_proof_feed`, `15_second_phase`, `16_room_activity`, `17_notification`, `18_1_device_token`, `20_room_chat_websocket`

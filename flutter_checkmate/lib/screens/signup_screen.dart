@@ -1,4 +1,5 @@
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -59,15 +60,22 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             nickname: nickname,
           );
       if (!mounted) return;
+      // 성공: snackbar 등록 후 화면 이동.
+      // 이동 후에는 setState를 호출하지 않는다.
+      // (화면이 사라지므로 isLoading 리셋 불필요)
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('회원가입이 완료되었습니다. 로그인해주세요.')),
       );
       context.go('/login');
     } catch (e) {
       if (!mounted) return;
-      setState(() => errorMessage = ApiClient.messageFromError(e));
-    } finally {
-      if (mounted) setState(() => isLoading = false);
+      final message = (e is DioException && e.response?.statusCode == 409)
+          ? '이미 가입된 이메일입니다.'
+          : ApiClient.messageFromError(e);
+      setState(() {
+        errorMessage = message;
+        isLoading = false;
+      });
     }
   }
 

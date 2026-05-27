@@ -48,61 +48,40 @@ class ApiClient {
 
   static String messageFromError(Object error) {
     if (error is DioException) {
-      final statusCode = error.response?.statusCode;
-      final responseData = error.response?.data;
-
-      if (responseData is Map) {
-        for (final key in ['message', 'detail', 'error']) {
-          final value = responseData[key];
-          if (value is String && _isUserFriendlyMessage(value)) {
-            return value;
-          }
-        }
-      } else if (responseData is String && _isUserFriendlyMessage(responseData)) {
-        return responseData;
+      // 1. timeout (연결/전송/수신 타임아웃 모두 동일 메시지)
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.sendTimeout ||
+          error.type == DioExceptionType.receiveTimeout) {
+        return '요청 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.';
       }
 
+      // 2. statusCode 기반 처리 (서버 응답이 있는 경우)
+      final statusCode = error.response?.statusCode;
       if (statusCode != null) return _statusCodeMessage(statusCode);
 
+      // 3. 네트워크 연결 실패 (서버 응답 없음)
       if (error.type == DioExceptionType.connectionError ||
-          error.type == DioExceptionType.connectionTimeout) {
-        return '네트워크 연결을 확인해주세요.';
+          error.type == DioExceptionType.unknown) {
+        return '서버에 연결할 수 없습니다. 인터넷 연결 또는 서버 실행 상태를 확인해 주세요.';
       }
 
-      return '네트워크 연결을 확인해주세요.';
+      return '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
     }
 
-    return '요청 처리 중 문제가 발생했습니다.';
-  }
-
-  static bool _isUserFriendlyMessage(String message) {
-    if (message.isEmpty) return false;
-    if (message.length > 100) return false;
-    final lower = message.toLowerCase();
-    if (lower.contains('<html')) return false;
-    if (lower.contains('dioexception')) return false;
-    if (lower.contains('status code')) return false;
-    if (lower.contains('this exception was thrown')) return false;
-    if (lower.contains('requestoptions')) return false;
-    if (lower.contains('stacktrace')) return false;
-    const devOnlyMessages = {
-      'conflict', 'bad request', 'forbidden', 'unauthorized',
-      'not found', 'internal server error', 'ok', 'created',
-    };
-    if (devOnlyMessages.contains(message.trim().toLowerCase())) return false;
-    return true;
+    return '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
   static String _statusCodeMessage(int statusCode) {
     switch (statusCode) {
-      case 400: return '입력값을 확인해주세요.';
-      case 401: return '로그인이 필요합니다.';
-      case 403: return '권한이 없습니다.';
-      case 404: return '대상을 찾을 수 없습니다.';
-      case 409: return '현재 요청을 처리할 수 없는 상태입니다.';
-      case 413: return '파일 용량이 너무 큽니다. 더 작은 파일로 다시 시도해주세요.';
-      case 500: return '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
-      default:  return '요청 처리 중 문제가 발생했습니다.';
+      case 400: return '입력값을 다시 확인해 주세요.';
+      case 401: return '로그인이 필요합니다. 다시 로그인해 주세요.';
+      case 403: return '이 작업을 할 권한이 없습니다.';
+      case 404: return '요청한 정보를 찾을 수 없습니다.';
+      case 409: return '현재 상태에서는 처리할 수 없습니다.';
+      case 413: return '파일 용량이 너무 큽니다. 더 작은 파일로 다시 시도해 주세요.';
+      default:
+        if (statusCode >= 500) return '서버에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+        return '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
     }
   }
 }
