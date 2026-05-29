@@ -1,7 +1,9 @@
 package com.example.checkmate.domain.room.dto;
 
 import com.example.checkmate.domain.room.entity.ProofFrequencyType;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -21,10 +23,6 @@ public class RoomCreateRequest {
 
     @NotNull(message = "마감 시간은 필수입니다.")
     private LocalTime deadlineTime;
-
-    @Min(value = 1, message = "목표 인증률은 1 이상이어야 합니다.")
-    @Max(value = 100, message = "목표 인증률은 100 이하여야 합니다.")
-    private int targetRate;
 
     @Min(value = 1, message = "예치 포인트는 1 이상이어야 합니다.")
     private long stakePoint;

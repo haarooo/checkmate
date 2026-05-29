@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,8 +87,11 @@ public class SettlementService {
         }
 
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
-        if (!today.isAfter(room.getMissionEndDate())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "미션 종료일 이후에만 정산할 수 있습니다.");
+        LocalTime nowTime = LocalTime.now(ZoneId.of("Asia/Seoul"));
+        boolean missionOver = today.isAfter(room.getMissionEndDate()) ||
+                (today.isEqual(room.getMissionEndDate()) && nowTime.isAfter(room.getDeadlineTime()));
+        if (!missionOver) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "미션 종료일 마감 시간 이후에만 정산할 수 있습니다.");
         }
 
         if (settlementRepository.findByRoom(room).isPresent()) {
@@ -128,7 +132,7 @@ public class SettlementService {
 
         if (failedCount == 0) {
             // 케이스 A: 전원 성공
-            long bonus = Math.min(room.getStakePoint() * 10 / 100, 5000L);
+            long bonus = room.getStakePoint() * 30 / 100;
             systemBonusPoint = bonus * members.size();
             for (int i = 0; i < members.size(); i++) {
                 rewardPoints[i] = room.getStakePoint() + bonus;
@@ -186,7 +190,7 @@ public class SettlementService {
             if (rewardPoints[i] > 0) {
                 if (failedCount == 0) {
                     // 전원 성공: stakePoint 반환 + bonus 분리 저장
-                    long bonus = Math.min(room.getStakePoint() * 10 / 100, 5000L);
+                    long bonus = room.getStakePoint() * 30 / 100;
                     pointService.addForSettlement(m.getUser(), room.getStakePoint(), roomId,
                             LedgerType.ROOM_SETTLEMENT_REFUND, "정산 예치금 반환");
                     pointService.addForSettlement(m.getUser(), bonus, roomId,

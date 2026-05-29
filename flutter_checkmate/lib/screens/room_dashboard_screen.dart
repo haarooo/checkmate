@@ -69,7 +69,8 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
   Future<void> stakeRoom() async => _runAction(
     () => ref.read(roomServiceProvider).stakeRoom(widget.roomId),
     customError: (code) {
-      if (code == 400 || code == 409) return '포인트가 부족하거나 이미 예치가 완료되었습니다.';
+      if (code == 400) return '포인트가 부족합니다.';
+      if (code == 409) return '이미 예치금을 납부했습니다.';
       return null;
     },
   );
@@ -81,6 +82,52 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
       return null;
     },
   );
+
+  Future<void> _settleRoom() async {
+    setState(() { isActionLoading = true; errorMessage = null; });
+    try {
+      await ref.read(roomServiceProvider).settleRoom(widget.roomId);
+      if (!mounted) return;
+      context.push('/rooms/${widget.roomId}/settlement');
+    } on DioException catch (e) {
+      if (!mounted) return;
+      if (e.response?.statusCode == 409) {
+        // 409는 "이미 정산됨"일 수도 있으므로 결과 조회를 먼저 시도
+        try {
+          await ref.read(roomServiceProvider).getSettlement(widget.roomId);
+          if (!mounted) return;
+          context.push('/rooms/${widget.roomId}/settlement');
+        } catch (_) {
+          if (!mounted) return;
+          setState(() => errorMessage = ApiClient.messageFromError(e));
+        }
+        return;
+      }
+      setState(() => errorMessage = ApiClient.messageFromError(e));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => errorMessage = ApiClient.messageFromError(e));
+    } finally {
+      if (mounted) setState(() => isActionLoading = false);
+    }
+  }
+
+  bool _canSettle(RoomDetailModel room) {
+    if (room.status != 'IN_PROGRESS') return false;
+    final endDate = room.missionEndDate;
+    if (endDate == null) return false;
+    final now = DateTime.now().toUtc().add(const Duration(hours: 9));
+    final todayKST = DateTime(now.year, now.month, now.day);
+    final endKST = DateTime(endDate.year, endDate.month, endDate.day);
+    if (todayKST.isAfter(endKST)) return true;
+    if (todayKST.isAtSameMomentAs(endKST)) {
+      final parts = room.deadlineTime.split(':');
+      final dh = int.tryParse(parts[0]) ?? 23;
+      final dm = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+      return (now.hour * 60 + now.minute) > (dh * 60 + dm);
+    }
+    return false;
+  }
 
   Future<void> _runAction(
     Future<RoomDetailModel> Function() action, {
@@ -157,16 +204,22 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
                       _errorBox(errorMessage!)
                     else ...[
                       _missionSummaryCard(currentRoom),
-                      const SizedBox(height: 16),
-                      _ruleCard(),
-                      const SizedBox(height: 16),
-                      _todayStatusCard(currentRoom),
-                      const SizedBox(height: 16),
-                      _myStatusCard(),
+                      if (currentRoom?.status != 'SETTLED') ...[
+                        const SizedBox(height: 16),
+                        _ruleCard(),
+                      ],
+                      if (currentRoom?.status == 'IN_PROGRESS') ...[
+                        const SizedBox(height: 16),
+                        _todayStatusCard(currentRoom),
+                        const SizedBox(height: 16),
+                        _myStatusCard(),
+                      ],
                       const SizedBox(height: 16),
                       _memberPreviewCard(),
-                      const SizedBox(height: 16),
-                      _inviteCard(currentRoom),
+                      if (currentRoom?.status != 'SETTLED') ...[
+                        const SizedBox(height: 16),
+                        _inviteCard(currentRoom),
+                      ],
                       const SizedBox(height: 96),
                     ],
                   ],
@@ -217,10 +270,10 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
               UiMappers.successRuleLabel(r.targetRate)),
           const SizedBox(height: 10),
           _summaryRow(Icons.account_balance_wallet_outlined, '내 예치금',
-              UiMappers.stakePointLabel(r.stakePoint)),
+              UiMappers.point(r.stakePoint)),
           const SizedBox(height: 10),
           _summaryRow(Icons.savings_outlined, '총 예치금',
-              UiMappers.potPointLabel(r.potPoint)),
+              UiMappers.point(r.potPoint)),
           const SizedBox(height: 10),
           _summaryRow(Icons.people_outline, '참여 인원',
               '${r.currentMemberCount}/${r.maxMembers}명'),
@@ -280,8 +333,6 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
           const SizedBox(height: 12),
           ...[
             UiMappers.confirmNoticeText,
-            '확인 완료된 인증만 성공 기준에 반영돼요.',
-            '성공하면 예치금을 돌려받아요.',
             UiMappers.penaltyNoticeText,
             UiMappers.bonusNoticeText,
           ].map(
@@ -312,7 +363,6 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
     final required = currentRoom?.requiredProofCount ?? 0;
     final type = currentRoom?.proofFrequencyType ?? 'DAILY';
     final title = UiMappers.currentPeriodTitle(type);
-    final remainLabel = UiMappers.remainingSubmitLabel(type);
     final deadlineText = UiMappers.deadlineLabel(type, currentRoom?.deadlineTime ?? '23:00');
 
     if (todayStatus == null) {
@@ -373,9 +423,20 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
           Expanded(child: _whiteStat('$remaining', '남은 제출')),
         ]),
         const SizedBox(height: 12),
-        Text('확인 완료된 인증만 목표 달성에 반영돼요.', style: TextStyle(color: Colors.blue.shade100, fontSize: 12)),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: required > 0 ? (confirmed / required).clamp(0.0, 1.0) : 0.0,
+            backgroundColor: Colors.white.withValues(alpha: 0.25),
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+            minHeight: 6,
+          ),
+        ),
         const SizedBox(height: 8),
-        Text(remaining == 0 ? '목표를 완료했어요!' : '목표까지 $remaining개 남았어요!', style: TextStyle(color: Colors.blue.shade100, fontSize: 14)),
+        Text(
+          remaining == 0 ? '이번 기간 목표 달성!' : '확인 $confirmed / 목표 $required',
+          style: TextStyle(color: Colors.blue.shade100, fontSize: 13),
+        ),
       ]),
     );
   }
@@ -401,6 +462,17 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
     final status = (myStatus?['progressStatus'] ?? 'NEED_SUBMIT').toString();
     final description = UiMappers.proofProgressDescription(status);
 
+    // 전체 미션 목표 계산
+    final r = room;
+    final totalRequired = r == null ? 0
+        : (r.proofFrequencyType == 'WEEKLY'
+            ? (r.durationDays ~/ 7) * r.requiredProofCount
+            : r.durationDays * r.requiredProofCount);
+    final requiredSuccess = (totalRequired * 0.8).ceil();
+    final progressValue = requiredSuccess > 0
+        ? (confirmed / requiredSuccess).clamp(0.0, 1.0)
+        : 0.0;
+
     return Container(
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF3F4F6))),
       padding: const EdgeInsets.all(20),
@@ -415,21 +487,37 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
           ),
         ]),
         if (description.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(description, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
         ],
         const SizedBox(height: 16),
         Row(children: [
-          Expanded(child: _buildStatBox('$submitted', '제출 완료', const Color(0xFF3B82F6))),
-          const SizedBox(width: 12),
-          Expanded(child: _buildStatBox('$confirmed', '확인 완료', const Color(0xFF22C55E))),
-        ]),
-        const SizedBox(height: 12),
-        Row(children: [
+          Expanded(child: _buildStatBox('$submitted', '제출', const Color(0xFF3B82F6))),
+          const SizedBox(width: 10),
+          Expanded(child: _buildStatBox('$confirmed', '확인', const Color(0xFF22C55E))),
+          const SizedBox(width: 10),
           Expanded(child: _buildStatBox('$remainingSubmit', '남은 제출', const Color(0xFFF97316))),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(child: _buildStatBox('$remainingConfirm', '남은 확인', const Color(0xFF9CA3AF))),
         ]),
+        if (totalRequired > 0) ...[
+          const SizedBox(height: 14),
+          Row(children: [
+            const Text('전체 목표', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+            const Spacer(),
+            Text('$confirmed / $requiredSuccess회', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: UiMappers.proofProgressColor(status))),
+          ]),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progressValue,
+              backgroundColor: const Color(0xFFF3F4F6),
+              valueColor: AlwaysStoppedAnimation<Color>(UiMappers.proofProgressColor(status)),
+              minHeight: 8,
+            ),
+          ),
+        ],
       ]),
     );
   }
@@ -476,17 +564,31 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
           const Text('아직 멤버 정보가 없습니다.',
               style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)))
         else
-          ...members.take(3).map((m) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildMemberCard(
-                  UiMappers.initialFromName(m.nickname),
-                  m.nickname,
-                  m.role == 'OWNER' ? '방장' : null,
-                  '미션 시작 전 멤버',
-                  UiMappers.memberStatusLabel(m.status),
-                  m.status == 'STAKED' ? const Color(0xFF22C55E) : const Color(0xFF3B82F6),
-                ),
-              )),
+          ...members.take(3).map((m) {
+                final statusColor = m.status == 'SUCCESS'
+                    ? const Color(0xFF22C55E)
+                    : m.status == 'FAILED'
+                        ? const Color(0xFFEF4444)
+                        : m.status == 'STAKED'
+                            ? const Color(0xFF3B82F6)
+                            : const Color(0xFF9CA3AF);
+                final statsText = m.status == 'SUCCESS'
+                    ? '미션 성공'
+                    : m.status == 'FAILED'
+                        ? '미션 실패'
+                        : '미션 시작 전';
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildMemberCard(
+                    UiMappers.initialFromName(m.nickname),
+                    m.nickname,
+                    m.role == 'OWNER' ? '방장' : null,
+                    statsText,
+                    UiMappers.memberStatusLabel(m.status),
+                    statusColor,
+                  ),
+                );
+              }),
       ]),
     );
   }
@@ -502,10 +604,10 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFBFDBFE)),
       ),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -598,7 +700,10 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('미션 시작 후 인증 제출이 가능합니다.', style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+          Text(
+            alreadyStaked ? '다른 멤버 예치 대기 중이에요' : '예치금을 내야 미션에 참여할 수 있어요',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+          ),
           const SizedBox(height: 10),
           button,
         ],
@@ -608,7 +713,7 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('미션 시작 후 인증 제출이 가능합니다.', style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+          const Text('모두 예치 완료! 미션을 시작해 주세요', style: TextStyle(fontSize: 13, color: Color(0xFF22C55E), fontWeight: FontWeight.w500)),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
@@ -625,18 +730,53 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('미션 시작 후 인증 제출이 가능합니다.', style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+          const Text('방장이 미션을 시작하면 인증을 올릴 수 있어요', style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
               onPressed: null,
               style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              child: const Text('방장이 미션을 시작할 때까지 대기 중', style: TextStyle(fontWeight: FontWeight.w600)),
+              child: const Text('시작 대기 중', style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ),
         ],
       );
+    }
+    if (room.status == 'SETTLED') {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () => context.push('/rooms/${widget.roomId}/settlement'),
+          style: _primaryStyle(),
+          child: const Text('정산 결과 보기', style: TextStyle(fontWeight: FontWeight.w600)),
+        ),
+      );
+    }
+    if (_canSettle(room)) {
+      return Row(children: [
+        Expanded(
+          child: ElevatedButton(
+            onPressed: isActionLoading ? null : _settleRoom,
+            style: _primaryStyle(),
+            child: Text(isActionLoading ? '처리 중...' : '정산하기', style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () => context.go('/rooms/${widget.roomId}/proofs'),
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('인증 확인하기', style: TextStyle(fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF3B82F6),
+              side: const BorderSide(color: Color(0xFF3B82F6)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+      ]);
     }
     return Row(children: [
       Expanded(child: ElevatedButton.icon(onPressed: () => context.go('/rooms/${widget.roomId}/submit-proof'), icon: const Icon(Icons.upload), label: const Text('인증 올리기', style: TextStyle(fontWeight: FontWeight.w600)), style: _primaryStyle())),
@@ -667,10 +807,12 @@ class _RoomDashboardScreenState extends ConsumerState<RoomDashboardScreen> {
   ) {
     return Row(
       children: [
+        Container(width: 4, height: 44, decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(width: 10),
         Container(
           width: 40,
           height: 40,
-          decoration: const BoxDecoration(color: Color(0xFF3B82F6), shape: BoxShape.circle),
+          decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
           child: Center(
             child: Text(initial, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),

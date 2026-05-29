@@ -13,6 +13,7 @@ import '../screens/notification_screen.dart';
 import '../screens/proof_feed_screen.dart';
 import '../screens/room_chat_screen.dart';
 import '../screens/room_dashboard_screen.dart';
+import '../screens/settlement_result_screen.dart';
 import '../screens/signup_screen.dart';
 import '../screens/splash_screen.dart';
 import '../screens/submit_proof_screen.dart';
@@ -115,6 +116,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final roomId = _parseRoomId(state);
           if (roomId == null) return const AppContainer(child: _InvalidRoomIdScreen());
           return AppContainer(child: RoomChatScreen(roomId: roomId));
+        },
+      ),
+      GoRoute(
+        path: '/rooms/:roomId/settlement',
+        builder: (context, state) {
+          final roomId = _parseRoomId(state);
+          if (roomId == null) return const AppContainer(child: _InvalidRoomIdScreen());
+          return AppContainer(child: SettlementResultScreen(roomId: roomId));
         },
       ),
       GoRoute(

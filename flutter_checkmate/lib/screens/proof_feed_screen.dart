@@ -54,11 +54,20 @@ class _ProofFeedScreenState extends ConsumerState<ProofFeedScreen> {
       await _silentRefresh();
     } catch (e) {
       if (mounted) {
-        final message = (e is DioException && e.response?.statusCode == 409)
-            ? '이미 확인했거나, 본인 인증은 확인할 수 없습니다.'
-            : ApiClient.messageFromError(e);
+        String message;
+        if (e is DioException) {
+          if (e.response?.statusCode == 403) {
+            message = '내 인증은 직접 확인할 수 없어요.';
+          } else if (e.response?.statusCode == 409) {
+            message = '이미 확인한 인증입니다.';
+          } else {
+            message = ApiClient.messageFromError(e);
+          }
+        } else {
+          message = ApiClient.messageFromError(e);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red),
+          SnackBar(content: Text(message), backgroundColor: const Color(0xFFEF4444)),
         );
       }
     }

@@ -183,11 +183,11 @@ class UiMappers {
   static String deadlineLabel(String type, String deadlineTime) {
     switch (type) {
       case 'DAILY':
-        return '매일 ${deadlineTime}까지 제출';
+        return '매일 $deadlineTime까지';
       case 'WEEKLY':
-        return '매주 ${deadlineTime}까지 제출';
+        return '매주 $deadlineTime까지';
       default:
-        return '${deadlineTime}까지 제출';
+        return '$deadlineTime까지';
     }
   }
 
@@ -225,20 +225,15 @@ class UiMappers {
     }
   }
 
-  static String successRuleLabel(int targetRate) =>
-      '전체 인증의 $targetRate% 이상을 확인받으면 성공';
+  static String successRuleLabel(int targetRate) => '인증 $targetRate% 이상 확인받기';
 
-  static const String confirmNoticeText =
-      '제출만으로는 성공이 아니에요. 친구가 확인해줘야 성공 인증으로 인정됩니다.';
+  static const String confirmNoticeText = '확인받은 인증만 성공으로 인정돼요';
 
-  static const String virtualPointNoticeText =
-      '현재 포인트는 서비스 내 가상 포인트입니다.';
+  static const String virtualPointNoticeText = '현재 포인트는 서비스 내 가상 포인트입니다.';
 
-  static const String penaltyNoticeText =
-      '인증을 못 채우면 예치금이 성공한 멤버에게 분배될 수 있어요.';
+  static const String penaltyNoticeText = '인증 미달 시 예치금이 다른 멤버에게 분배돼요';
 
-  static const String bonusNoticeText =
-      '전원이 성공하면 모두가 예치금과 보너스를 받습니다.';
+  static const String bonusNoticeText = '전원 성공 시 예치금 반환 + 30% 보너스';
 
   static const List<String> settlementPolicyTexts = [
     '전원 성공: 모두 예치금 반환 + 성공 보너스',

@@ -224,47 +224,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFBFDBFE)),
       ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          const Row(
-            children: [
-              Icon(Icons.verified_outlined, size: 18, color: Color(0xFF3B82F6)),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  '친구들과 포인트 걸고 끝까지 인증하기',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '예치금을 걸고 미션을 시작해요. 서로의 인증을 확인하고, 끝까지 성공한 멤버가 보상을 가져갑니다.',
-            style: TextStyle(fontSize: 13, color: Color(0xFF374151), height: 1.5),
-          ),
-          const SizedBox(height: 12),
-          _descriptionPoint(Icons.savings_outlined, '예치금으로 책임감 만들기'),
-          const SizedBox(height: 6),
-          _descriptionPoint(Icons.people_outline, '멤버끼리 서로 인증을 확인'),
-          const SizedBox(height: 6),
-          _descriptionPoint(Icons.emoji_events_outlined, '성공하면 예치금 반환 + 보상'),
+          _miniPoint(Icons.savings_outlined, '예치금'),
+          Container(width: 1, height: 28, color: const Color(0xFFBFDBFE)),
+          _miniPoint(Icons.people_outline, '서로 인증'),
+          Container(width: 1, height: 28, color: const Color(0xFFBFDBFE)),
+          _miniPoint(Icons.emoji_events_outlined, '성공 보상'),
         ],
       ),
     );
   }
 
-  Widget _descriptionPoint(IconData icon, String text) {
-    return Row(
+  Widget _miniPoint(IconData icon, String text) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: const Color(0xFF3B82F6)),
-        const SizedBox(width: 6),
-        Text(text, style: const TextStyle(fontSize: 13, color: Color(0xFF374151))),
+        Icon(icon, size: 20, color: const Color(0xFF3B82F6)),
+        const SizedBox(height: 4),
+        Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF374151), fontWeight: FontWeight.w500)),
       ],
     );
   }

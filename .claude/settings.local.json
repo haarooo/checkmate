@@ -3,7 +3,11 @@
     "allow": [
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\pshb0\\\\IdeaProjects\\\\checkmate\\\\flutter_checkmate\" -Recurse -Directory)",
       "Bash(Select-Object FullName)",
-      "Bash(Sort-Object FullName)"
+      "Bash(Sort-Object FullName)",
+      "Bash(curl *)",
+      "Bash(mysql -u root -p1234 checkmate -e \"SHOW TABLES;\")",
+      "Bash(mysql -uroot -p1234 checkmate -e \"SHOW TABLES;\")",
+      "Bash(cmd.exe /c \"netstat -an | findstr 8080\")"
     ]
   }
 }

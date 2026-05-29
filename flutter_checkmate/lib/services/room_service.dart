@@ -1,5 +1,6 @@
 import '../core/network/api_client.dart';
 import '../models/room_model.dart';
+import '../models/settlement_model.dart';
 
 class RoomService {
   RoomService({required this.apiClient});
@@ -19,7 +20,6 @@ class RoomService {
     required String description,
     required int durationDays,
     required String deadlineTime,
-    required int targetRate,
     required int stakePoint,
     required int maxMembers,
     required String proofFrequencyType,
@@ -32,7 +32,6 @@ class RoomService {
         'description': description,
         'durationDays': durationDays,
         'deadlineTime': deadlineTime,
-        'targetRate': targetRate,
         'stakePoint': stakePoint,
         'maxMembers': maxMembers,
         'proofFrequencyType': proofFrequencyType,
@@ -91,5 +90,15 @@ class RoomService {
   Future<Map<String, dynamic>> getMemberStats(int roomId) async {
     final response = await apiClient.dio.get('/api/rooms/$roomId/members/stats');
     return response.data as Map<String, dynamic>;
+  }
+
+  Future<SettlementModel> settleRoom(int roomId) async {
+    final response = await apiClient.dio.post('/api/rooms/$roomId/settle');
+    return SettlementModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<SettlementModel> getSettlement(int roomId) async {
+    final response = await apiClient.dio.get('/api/rooms/$roomId/settlement');
+    return SettlementModel.fromJson(response.data as Map<String, dynamic>);
   }
 }

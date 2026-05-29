@@ -70,7 +70,6 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
         description: description,
         durationDays: durationDays,
         deadlineTime: '23:00',
-        targetRate: 80,
         stakePoint: stakePoint,
         maxMembers: maxMembers,
         proofFrequencyType: proofType,
@@ -146,7 +145,7 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFBFDBFE))),
+                      decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFBFDBFE))),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -241,7 +240,7 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Color(0xFFF3F4F6)))),
             child: SizedBox(
               width: double.infinity,
@@ -295,7 +294,7 @@ class _CreateRoomScreenState extends ConsumerState<CreateRoomScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFBFDBFE)),
       ),
       child: Column(

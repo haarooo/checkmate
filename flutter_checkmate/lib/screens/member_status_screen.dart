@@ -111,7 +111,20 @@ class _MemberStatusScreenState extends ConsumerState<MemberStatusScreen> {
                   if (isLoading)
                     const Padding(padding: EdgeInsets.symmetric(vertical: 60), child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
                   else if (errorMessage != null)
-                    Text(errorMessage!, style: const TextStyle(color: Color(0xFFEF4444)))
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.error_outline, size: 16, color: Color(0xFFEF4444)),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(errorMessage!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13))),
+                      ]),
+                    )
                   else if (members.isEmpty)
                     const Text('멤버가 없습니다.', style: TextStyle(color: Color(0xFF6B7280)))
                   else
@@ -221,9 +234,9 @@ class _MemberStatusScreenState extends ConsumerState<MemberStatusScreen> {
                 if (role != null) ...[
                   const SizedBox(width: 8),
                   Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(color: const Color(0xFFDBEAFE), borderRadius: BorderRadius.circular(6)),
-                      child: Text(role, style: const TextStyle(color: Color(0xFF2563EB), fontSize: 12, fontWeight: FontWeight.w600))),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: const Color(0xFF3B82F6), borderRadius: BorderRadius.circular(4)),
+                      child: Text(role, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600))),
                 ],
               ]),
               const SizedBox(height: 4),

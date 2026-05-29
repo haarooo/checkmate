@@ -72,7 +72,7 @@ public class RoomService {
                 inviteLinkToken,
                 request.getDurationDays(),
                 request.getDeadlineTime(),
-                request.getTargetRate(),
+                80,
                 request.getStakePoint(),
                 request.getMaxMembers(),
                 request.getProofFrequencyType(),

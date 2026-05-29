@@ -42,3 +42,5 @@ src/main/resources/application.properties
 # uploaded files
 uploads/
 
+# Firebase Admin SDK private key
+/firebase/*.json

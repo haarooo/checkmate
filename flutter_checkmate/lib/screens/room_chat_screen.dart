@@ -149,35 +149,31 @@ class _RoomChatScreenState extends ConsumerState<RoomChatScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF111827)),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/rooms/${widget.roomId}');
-            }
-          },
-        ),
-        title: const Text(
-          '채팅',
-          style: TextStyle(
-            color: Color(0xFF111827),
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: false,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: const Color(0xFFF3F4F6)),
-        ),
-      ),
       body: Column(
         children: [
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(8, 16, 24, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF111827)),
+                    onPressed: () {
+                      if (context.canPop()) context.pop();
+                      else context.go('/rooms/${widget.roomId}');
+                    },
+                  ),
+                ]),
+                const Padding(
+                  padding: EdgeInsets.only(left: 16),
+                  child: Text('채팅', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF111827))),
+                ),
+              ],
+            ),
+          ),
+          Container(height: 1, color: const Color(0xFFF3F4F6)),
           if (_isLoading)
             const Expanded(
               child: Center(

@@ -5,8 +5,10 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 
 @Slf4j
@@ -14,13 +16,19 @@ import java.io.IOException;
 public class FirebaseConfig {
 
     /**
+     * application.properties에 등록한 Firebase service account JSON 경로를 읽는다.
+     *
+     * 예:
+     * firebase.service-account-path=firebase/checkmate-9a60c-firebase-adminsdk-fbsvc-1471f996f2.json
+     */
+    @Value("${firebase.service-account-path}")
+    private String serviceAccountPath;
+
+    /**
      * Spring Boot가 시작될 때 Firebase Admin SDK를 초기화한다.
      *
-     * GOOGLE_APPLICATION_CREDENTIALS 환경변수에 service account JSON 경로를 등록해두면,
-     * GoogleCredentials.getApplicationDefault()가 그 파일을 자동으로 읽는다.
-     *
-     * FirebaseApp은 한 애플리케이션 안에서 중복 초기화하면 예외가 날 수 있으므로,
-     * 이미 초기화된 앱이 있는지 먼저 확인한다.
+     * 현재 방식은 GOOGLE_APPLICATION_CREDENTIALS 환경변수 방식이 아니라,
+     * application.properties에 적어둔 JSON 파일 경로를 직접 읽는 방식이다.
      */
     @PostConstruct
     public void initializeFirebase() {
@@ -29,9 +37,10 @@ public class FirebaseConfig {
             return;
         }
 
-        try {
+        try (FileInputStream serviceAccount = new FileInputStream(serviceAccountPath)) {
+
             FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.getApplicationDefault())
+                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                     .build();
 
             FirebaseApp.initializeApp(options);
@@ -39,7 +48,8 @@ public class FirebaseConfig {
 
         } catch (IOException e) {
             throw new IllegalStateException(
-                    "Firebase Admin SDK 초기화에 실패했습니다. GOOGLE_APPLICATION_CREDENTIALS 환경변수와 service account JSON 경로를 확인하세요.",
+                    "Firebase Admin SDK 초기화 실패. service account JSON 파일 경로를 확인하세요. 현재 경로 = "
+                            + serviceAccountPath,
                     e
             );
         }

@@ -92,7 +92,20 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                   _ledgerCard(formatter),
                   if (errorMessage != null) ...[
                     const SizedBox(height: 12),
-                    Text(errorMessage!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13)),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.error_outline, size: 16, color: Color(0xFFEF4444)),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(errorMessage!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13))),
+                      ]),
+                    ),
                   ],
                   const SizedBox(height: 24),
                   SizedBox(
@@ -174,8 +187,10 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
     switch (type) {
       case 'SIGNUP_BONUS': return '가입 보너스';
       case 'TEST_CHARGE': return '테스트 충전';
-      case 'ROOM_STAKE': return '방 참여 예치금';
+      case 'ROOM_STAKE': return '방 예치금';
+      case 'ROOM_SETTLEMENT_REFUND': return '정산 예치금 반환';
       case 'ROOM_SETTLEMENT_REWARD': return '정산 보상';
+      case 'ROOM_SETTLEMENT_SUCCESS_BONUS': return '전원 성공 보너스';
       case 'ROOM_REFUND': return '예치금 환불';
       default: return type;
     }
@@ -184,12 +199,33 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
   String _formatDate(DateTime date) => '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 
   Widget _staticLedger(String title, String amount, String description, String date, bool isPlus) {
-    return Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)), child: Row(children: [
-      Container(width: 40, height: 40, decoration: BoxDecoration(color: isPlus ? const Color(0xFFFEF3C7) : const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(10)), child: Icon(isPlus ? Icons.card_giftcard : Icons.trending_down, color: isPlus ? const Color(0xFFEAB308) : const Color(0xFFEF4444))),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w600)), const SizedBox(height: 2), Text(description, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))), const SizedBox(height: 2), Text(date, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)))])),
-      Text(amount, style: TextStyle(fontWeight: FontWeight.bold, color: isPlus ? const Color(0xFFEAB308) : const Color(0xFFEF4444))),
-    ]));
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)),
+      child: Row(children: [
+        Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(
+            color: isPlus ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            isPlus ? Icons.arrow_upward : Icons.arrow_downward,
+            color: isPlus ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
+            size: 18,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 2),
+          Text(description, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+          const SizedBox(height: 2),
+          Text(date, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+        ])),
+        Text(amount, style: TextStyle(fontWeight: FontWeight.bold, color: isPlus ? const Color(0xFF22C55E) : const Color(0xFFEF4444))),
+      ]),
+    );
   }
 
   Widget _miniInfo(String label, String value) => Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)), child: Column(children: [Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF111827))), const SizedBox(height: 4), Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)))]));
