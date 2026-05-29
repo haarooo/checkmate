@@ -45,13 +45,13 @@
   - ROOM_STAKE: 예치금 차감 (음수)
   - ROOM_SETTLEMENT_REFUND: 본인 예치금 반환 (전원 성공 stakePoint 반환 / 일부 성공 stakePoint 반환 / 전원 실패 70% 환불 모두 해당)
   - ROOM_SETTLEMENT_REWARD: 일부 성공 케이스에서 실패자 예치금을 성공자에게 분배하는 보상분
-  - ROOM_SETTLEMENT_SUCCESS_BONUS: 전원 성공 시 시스템 성공 보너스 (successBonusPoint = min(stakePoint * 10 / 100, 5000))
+  - ROOM_SETTLEMENT_SUCCESS_BONUS: 전원 성공 시 시스템 성공 보너스 (bonus = stakePoint * 30 / 100)
   - ROOM_REFUND: 레거시 보존 (이번 정산에서 사용 안 함)
 
 ## Settlement
 - 방 멤버 누구나 실행 가능. 비멤버 403.
 - room.status == IN_PROGRESS일 때만 가능. 아닌 경우 409.
-- Asia/Seoul 기준 today > missionEndDate일 때만 가능. today <= missionEndDate → 409 (당일 정산 불가).
+- Asia/Seoul 기준 today > missionEndDate이거나, today == missionEndDate && nowTime > deadlineTime이면 가능. 그 외(마감 시간 전) → 409.
 - Settlement가 이미 존재하면 409.
 - 정산은 하나의 트랜잭션. roomRepository.findByIdForUpdate로 row 비관적 락 사용.
 - 정산 성공 시 room.status = SETTLED.
@@ -69,9 +69,9 @@
 
 **케이스 A — 전원 성공:**
 - 각자 stakePoint 반환.
-- successBonusPoint = min(stakePoint * 10 / 100, 5000).
-- rewardPoint = stakePoint + successBonusPoint.
-- systemBonusPoint = successBonusPoint * totalMembers → Settlement 기록용, 지갑 이동 없음.
+- bonus = stakePoint * 30 / 100.
+- rewardPoint = stakePoint + bonus.
+- systemBonusPoint = bonus * totalMembers → Settlement 기록용, 지갑 이동 없음.
 - Ledger 기록:
   - stakePoint 반환: ROOM_SETTLEMENT_REFUND
   - successBonusPoint 지급: ROOM_SETTLEMENT_SUCCESS_BONUS

@@ -33,7 +33,8 @@ MySQL 기준. 상세 정책은 `01_BUSINESS_RULES.md`.
 - room_activities: id, room_id FK, actor_id FK NULL, type, message, created_at
   - type: MEMBER_JOINED, MEMBER_STAKED, ROOM_READY, ROOM_STARTED, PROOF_SUBMITTED, PROOF_CONFIRMED, ROOM_SETTLED
 - notifications: id, receiver_id FK, room_id FK NULL, type, title, message, read_at NULL, created_at
-  - type: PROOF_SUBMITTED, PROOF_CONFIRMED, ROOM_STARTED, ROOM_SETTLED, MEMBER_JOINED, MEMBER_STAKED
+  - type: PROOF_SUBMITTED, PROOF_CONFIRMED, ROOM_STARTED, ROOM_SETTLED
+  - MEMBER_JOINED, MEMBER_STAKED는 RoomActivity 전용 이벤트이며 Notification 발송 대상 아님
 - device_tokens: id, user_id FK, token UNIQUE, platform, active, created_at, updated_at
   - platform: ANDROID, IOS, WEB
 - room_messages: id, room_id FK, sender_id FK, content, created_at

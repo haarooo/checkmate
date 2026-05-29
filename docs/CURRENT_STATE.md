@@ -51,9 +51,9 @@
   - deadlinePassed: DAILY는 매일, WEEKLY는 일요일 deadlineTime 이후
   - myStatus + members 포함
 - `POST /api/rooms/{roomId}/settle` 방 정산 (방 멤버 누구나, 비멤버 403, findByIdForUpdate 비관적 락)
-  - room.status != IN_PROGRESS → 409, today <= missionEndDate → 409, 이미 Settlement 존재 → 409
+  - room.status != IN_PROGRESS → 409, today < missionEndDate이거나 today == missionEndDate && nowTime <= deadlineTime → 409, 이미 Settlement 존재 → 409
   - CONFIRMED만 성공 인증으로 계산, requiredSuccessCount 비교로 SUCCESS/FAILED 판정
-  - 전원 성공: stakePoint 반환(REFUND) + successBonusPoint = min(stakePoint*10/100, 5000)(SUCCESS_BONUS)
+  - 전원 성공: stakePoint 반환(REFUND) + bonus = stakePoint*30/100 (SUCCESS_BONUS)
   - 일부 성공: 성공자 stakePoint 반환(REFUND) + failedPot 균등 분배(REWARD), joinedAt 오름차순 remainder
   - 전원 실패: systemFee 30% 기록, refundPool 균등 환불(REFUND), joinedAt 오름차순 remainder
   - 정산 후 room.status = SETTLED, RoomMember.status = SUCCESS / FAILED

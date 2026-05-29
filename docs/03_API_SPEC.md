@@ -40,7 +40,7 @@
   - DAILY: 당일 제출 수 < requiredProofCount, WEEKLY: 주차 제출 수 < requiredProofCount, 초과 시 409
   - deadlineTime 이후 제출 → 409
 - GET `/api/rooms/{roomId}/proofs`
-- GET `/api/proofs/{proofId}`
+- GET `/api/proofs/{proofId}` 선택
 - POST `/api/proofs/{proofId}/confirm`
   - 본인 확인 금지 → 403
   - 중복 ProofConfirmation (같은 confirmer) → 409
@@ -51,7 +51,8 @@
 - POST `/api/rooms/{roomId}/settle`
   - 방 멤버 누구나 실행 가능 (OWNER 전용 아님). 비멤버 → 403.
   - room.status != IN_PROGRESS → 409
-  - Asia/Seoul 기준 today <= missionEndDate → 409 (당일 정산 불가)
+  - Asia/Seoul 기준 today < missionEndDate이거나, today == missionEndDate && nowTime <= deadlineTime → 409
+  - today > missionEndDate이거나, today == missionEndDate && nowTime > deadlineTime → 정산 가능
   - 이미 Settlement 존재 (settlements.room_id UNIQUE) → 409
   - 성공 시 200, room.status = SETTLED, RoomMember.status = SUCCESS/FAILED
 - GET `/api/rooms/{roomId}/settlement`
@@ -77,8 +78,9 @@
 ### DeviceToken / FCM
 - POST `/api/device-tokens`
   - token, platform 저장.
-- DELETE `/api/device-tokens/{token}`
-  - 로그아웃/토큰 만료 시 비활성화.
+- DELETE `/api/device-tokens`
+  - request body: `{ "token": "..." }` 방식. FCM token은 특수문자 포함으로 path variable 미사용.
+  - 로그아웃/토큰 만료 시 비활성화. 204 No Content.
 
 ### Room Chat
 - GET `/api/rooms/{roomId}/messages`
@@ -93,8 +95,8 @@
   - 초기에는 기존 `/api/rooms/{roomId}/today-status`, `/api/rooms/{roomId}/members/stats` 재사용 가능.
 
 ### Settlement Share Card
-- GET `/api/rooms/{roomId}/share-card/me`
-- GET `/api/rooms/{roomId}/share-card/group`
+- GET `/api/rooms/{roomId}/share-card/me` 후보
+- GET `/api/rooms/{roomId}/share-card/group` 후보
 
 ## Post-MVP 후보
 - GET `/api/rooms/{roomId}/records`

@@ -29,6 +29,7 @@
 | 날짜/포맷 | intl |
 | Firebase Core | firebase_core |
 | Push 알림 | firebase_messaging |
+| WebSocket/STOMP | stomp_dart_client |
 
 ---
 
@@ -58,6 +59,8 @@
 | `/rooms/:roomId/members` | MemberStatusScreen |
 | `/rooms/:roomId/submit-proof` | SubmitProofScreen |
 | `/rooms/:roomId/proofs` | ProofFeedScreen |
+| `/rooms/:roomId/chat` | RoomChatScreen |
+| `/rooms/:roomId/settlement` | SettlementResultScreen |
 | `/notifications` | NotificationScreen |
 | `/mypage` | MyPageScreen |
 
