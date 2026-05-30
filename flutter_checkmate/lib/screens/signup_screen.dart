@@ -159,7 +159,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Widget _bonusBox() {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [const Color(0xFF3B82F6).withOpacity(0.9), const Color(0xFF2563EB).withOpacity(0.9)]),
+        gradient: LinearGradient(colors: [const Color(0xFF3B82F6).withValues(alpha: 0.9), const Color(0xFF2563EB).withValues(alpha: 0.9)]),
         borderRadius: BorderRadius.circular(16),
       ),
       padding: const EdgeInsets.all(16),
@@ -168,7 +168,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           Container(
             width: 48,
             height: 48,
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
             child: const Icon(Icons.card_giftcard, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 16),

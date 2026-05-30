@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../core/network/api_client.dart';
 import '../core/providers/app_providers.dart';
 import '../core/providers/auth_controller.dart';
+import '../core/theme/app_colors.dart';
 import '../core/utils/ui_mappers.dart';
 import '../models/point_model.dart';
 import '../models/user_model.dart';
@@ -62,33 +63,43 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
   @override
   Widget build(BuildContext context) {
     final currentUser = user;
-    final balance = wallet?.balance ?? 100000;
     final formatter = NumberFormat('#,###');
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
+          // ─── 헤더 ────────────────────────────────────────────────
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/home'))]),
-              const Text('마이페이지', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            ]),
+            color: AppColors.surface,
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/home')),
+                  ]),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+                    child: Text('마이페이지', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                  ),
+                ],
+              ),
+            ),
           ),
-          Container(height: 1, color: const Color(0xFFF3F4F6)),
+          Container(height: 1, color: AppColors.borderLight),
           Expanded(
             child: RefreshIndicator(
               onRefresh: loadMyPage,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
                 child: Column(children: [
                   _profileCard(currentUser),
-                  const SizedBox(height: 16),
-                  _pointCard(balance),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
+                  _pointCard(),
+                  const SizedBox(height: 14),
                   _ledgerCard(formatter),
                   if (errorMessage != null) ...[
                     const SizedBox(height: 12),
@@ -96,25 +107,30 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
+                        color: AppColors.errorSoft,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFFECACA)),
                       ),
                       child: Row(children: [
-                        const Icon(Icons.error_outline, size: 16, color: Color(0xFFEF4444)),
+                        const Icon(Icons.error_outline, size: 16, color: AppColors.error),
                         const SizedBox(width: 8),
-                        Expanded(child: Text(errorMessage!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13))),
+                        Expanded(child: Text(errorMessage!, style: const TextStyle(color: AppColors.error, fontSize: 13))),
                       ]),
                     ),
                   ],
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
+                    height: 52,
                     child: OutlinedButton.icon(
                       onPressed: logout,
-                      icon: const Icon(Icons.logout),
-                      label: const Text('로그아웃', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                      style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF374151), side: const BorderSide(color: Color(0xFFE5E7EB)), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      icon: const Icon(Icons.logout, size: 18),
+                      label: const Text('로그아웃', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.textSecondary,
+                        side: const BorderSide(color: AppColors.border),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -127,52 +143,112 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
     );
   }
 
+  // ─── 프로필 카드 ──────────────────────────────────────────────
+
   Widget _profileCard(UserModel? currentUser) {
-    final name = currentUser?.name ?? '김철수';
-    final nickname = currentUser?.nickname ?? 'owner_124909';
-    final role = currentUser?.role ?? 'ROLE_USER';
+    final name = currentUser?.name ?? '-';
+    final nickname = currentUser?.nickname ?? '-';
+
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF3F4F6))),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: const [BoxShadow(color: AppColors.shadowColor, blurRadius: 8, offset: Offset(0, 2))],
+      ),
       padding: const EdgeInsets.all(20),
-      child: Column(children: [
-        Row(children: [
-          Container(width: 64, height: 64, decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF2563EB)]), shape: BoxShape.circle), child: Center(child: Text(UiMappers.initialFromName(name), style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)))),
-          const SizedBox(width: 16),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text(nickname, style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)))])),
-          TextButton(onPressed: () {}, child: const Text('편집', style: TextStyle(fontSize: 14, color: Color(0xFF3B82F6), fontWeight: FontWeight.w600))),
-        ]),
-        const SizedBox(height: 16),
-        Row(children: [Expanded(child: _miniInfo('권한', role.replaceAll('ROLE_', ''))), const SizedBox(width: 12), Expanded(child: _miniInfo('가입 보너스', '100,000P'))]),
+      child: Row(children: [
+        Container(
+          width: 60, height: 60,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [AppColors.primary, AppColors.primaryDark]),
+            shape: BoxShape.circle,
+          ),
+          child: Center(child: Text(UiMappers.initialFromName(name), style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800))),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+              const SizedBox(height: 4),
+              Text(nickname, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(999)),
+                child: const Text('Checkmate 멤버', style: TextStyle(fontSize: 11, color: AppColors.primaryDark, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
       ]),
     );
   }
 
-  Widget _pointCard(int balance) {
+  // ─── 포인트 카드 ──────────────────────────────────────────────
+
+  Widget _pointCard() {
+    final balance = wallet?.balance;
+
     return Container(
-      decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF2563EB)]), borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.28), blurRadius: 16, offset: const Offset(0, 6))],
+      ),
       padding: const EdgeInsets.all(20),
       child: Row(children: [
-        Container(width: 48, height: 48, decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle), child: const Icon(Icons.monetization_on_outlined, color: Colors.white)),
+        Container(
+          width: 48, height: 48,
+          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), shape: BoxShape.circle),
+          child: const Icon(Icons.monetization_on_outlined, color: Colors.white, size: 24),
+        ),
         const SizedBox(width: 16),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('보유 포인트', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14)), const SizedBox(height: 4), Text(UiMappers.point(balance), style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold))])),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('보유 포인트', style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13)),
+            const SizedBox(height: 6),
+            Text(
+              balance == null ? '-' : UiMappers.point(balance),
+              style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w800),
+            ),
+          ]),
+        ),
       ]),
     );
   }
+
+  // ─── 포인트 이력 카드 ─────────────────────────────────────────
 
   Widget _ledgerCard(NumberFormat formatter) {
     final displayLedgers = ledgers.isEmpty ? null : ledgers.take(5).toList();
+
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFF3F4F6))),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: const [BoxShadow(color: AppColors.shadowColor, blurRadius: 8, offset: Offset(0, 2))],
+      ),
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('포인트 이력', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text('포인트 이력', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
         const SizedBox(height: 16),
         if (isLoading)
-          const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Color(0xFF3B82F6))))
+          const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: AppColors.primary)))
         else if (displayLedgers == null)
-          Column(children: [_staticLedger('방 참여 예치금', '-15,000P', '식단 관리 1달 챌린지', '2024.05.05 18:45', false), const SizedBox(height: 12), _staticLedger('가입 보너스', '+100,000P', '회원가입 축하 포인트', '2024.05.01 12:00', true)])
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: Text('포인트 이력이 없어요', style: TextStyle(color: AppColors.textMuted, fontSize: 13))),
+          )
         else
-          ...displayLedgers.map((ledger) => Padding(padding: const EdgeInsets.only(bottom: 12), child: _ledgerItem(ledger, formatter))),
+          ...displayLedgers.map((ledger) => Padding(padding: const EdgeInsets.only(bottom: 10), child: _ledgerItem(ledger, formatter))),
       ]),
     );
   }
@@ -180,7 +256,35 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
   Widget _ledgerItem(PointLedgerModel ledger, NumberFormat formatter) {
     final isPlus = ledger.amount >= 0;
     final title = _ledgerTitle(ledger.type);
-    return _staticLedger(title, '${isPlus ? '+' : ''}${formatter.format(ledger.amount)}P', ledger.description, _formatDate(ledger.createdAt), isPlus);
+    final amountText = '${isPlus ? '+' : ''}${formatter.format(ledger.amount)}P';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(14)),
+      child: Row(children: [
+        Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(
+            color: isPlus ? AppColors.successSoft : AppColors.errorSoft,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            isPlus ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+            color: isPlus ? AppColors.successDark : AppColors.error,
+            size: 18,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary)),
+          const SizedBox(height: 2),
+          Text(ledger.description, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          const SizedBox(height: 2),
+          Text(_formatDate(ledger.createdAt), style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+        ])),
+        Text(amountText, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: isPlus ? AppColors.successDark : AppColors.error)),
+      ]),
+    );
   }
 
   String _ledgerTitle(String type) {
@@ -196,37 +300,6 @@ class _MyPageScreenState extends ConsumerState<MyPageScreen> {
     }
   }
 
-  String _formatDate(DateTime date) => '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-
-  Widget _staticLedger(String title, String amount, String description, String date, bool isPlus) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)),
-      child: Row(children: [
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            color: isPlus ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(
-            isPlus ? Icons.arrow_upward : Icons.arrow_downward,
-            color: isPlus ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
-            size: 18,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 2),
-          Text(description, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-          const SizedBox(height: 2),
-          Text(date, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-        ])),
-        Text(amount, style: TextStyle(fontWeight: FontWeight.bold, color: isPlus ? const Color(0xFF22C55E) : const Color(0xFFEF4444))),
-      ]),
-    );
-  }
-
-  Widget _miniInfo(String label, String value) => Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)), child: Column(children: [Text(value, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF111827))), const SizedBox(height: 4), Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)))]));
+  String _formatDate(DateTime date) =>
+      '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 }

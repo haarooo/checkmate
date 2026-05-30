@@ -10,17 +10,12 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = switch (status) {
-      'SUCCESS' || 'CONFIRMED' || 'IN_PROGRESS' => AppColors.success,
-      'READY' || 'WAITING_CONFIRM' => AppColors.warning,
-      'FAILED' || 'MISSED' => AppColors.error,
-      _ => AppColors.primary,
-    };
+    final (color, bg) = _resolve(status);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -28,5 +23,28 @@ class StatusBadge extends StatelessWidget {
         style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700),
       ),
     );
+  }
+
+  (Color, Color) _resolve(String s) {
+    switch (s) {
+      case 'SUCCESS':
+      case 'CONFIRMED':
+        return (AppColors.successDark, AppColors.successSoft);
+      case 'IN_PROGRESS':
+        return (AppColors.primaryDark, AppColors.primarySoft);
+      case 'READY':
+      case 'WAITING_CONFIRM':
+        return (AppColors.primaryDark, AppColors.primarySoft);
+      case 'NEED_SUBMIT':
+      case 'NEED_MORE':
+        return (AppColors.warning, AppColors.warningSoft);
+      case 'FAILED':
+      case 'MISSED':
+        return (AppColors.error, AppColors.errorSoft);
+      case 'SETTLED':
+        return (AppColors.textSecondary, AppColors.cardBorder);
+      default:
+        return (AppColors.primary, AppColors.primarySoft);
+    }
   }
 }

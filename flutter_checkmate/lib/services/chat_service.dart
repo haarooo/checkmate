@@ -65,7 +65,7 @@ class ChatService {
     }
 
     final wsUrl =
-        ApiConstants.baseUrl.replaceFirst('http://', 'ws://') + '/ws';
+        '${ApiConstants.baseUrl.replaceFirst('http://', 'ws://')}/ws';
 
     _stompClient = StompClient(
       config: StompConfig(

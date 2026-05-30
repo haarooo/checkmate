@@ -161,8 +161,8 @@ class _RoomChatScreenState extends ConsumerState<RoomChatScreen> {
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Color(0xFF111827)),
                     onPressed: () {
-                      if (context.canPop()) context.pop();
-                      else context.go('/rooms/${widget.roomId}');
+                      if (context.canPop()) { context.pop(); }
+                      else { context.go('/rooms/${widget.roomId}'); }
                     },
                   ),
                 ]),
@@ -450,7 +450,7 @@ class _MessageBubble extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           color: isMe
-                              ? Colors.white.withOpacity(0.7)
+                              ? Colors.white.withValues(alpha: 0.7)
                               : const Color(0xFF9CA3AF),
                         ),
                       ),

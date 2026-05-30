@@ -232,7 +232,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.notifications_none_outlined, size: 56, color: AppColors.textSecondary.withOpacity(0.4)),
+              Icon(Icons.notifications_none_outlined, size: 56, color: AppColors.textSecondary.withValues(alpha: 0.4)),
               const SizedBox(height: 16),
               const Text(
                 '아직 알림이 없어요',
@@ -274,7 +274,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
             color: isUnread ? const Color(0xFFBFDBFE) : AppColors.border,
           ),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 1)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 1)),
           ],
         ),
         child: Row(
@@ -334,7 +334,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                     const SizedBox(height: 6),
                     Text(
                       _relativeTime(n.createdAt),
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withOpacity(0.7)),
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.7)),
                     ),
                   ],
                 ),

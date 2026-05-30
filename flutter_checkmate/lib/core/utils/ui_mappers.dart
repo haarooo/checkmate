@@ -147,14 +147,14 @@ class UiMappers {
   }
 
   static String frequencyGoalLabel(String type, int count) {
-    if (type == 'DAILY') return count == 1 ? '하루 1회 인증' : '하루 ${count}회 인증';
-    if (type == 'WEEKLY') return count == 1 ? '매주 1회 인증' : '매주 ${count}회 인증';
+    if (type == 'DAILY') return count == 1 ? '하루 1회 인증' : '하루 $count회 인증';
+    if (type == 'WEEKLY') return count == 1 ? '매주 1회 인증' : '매주 $count회 인증';
     return '인증 방식 미정';
   }
 
   static String currentPeriodGoalLabel(String type, int count) {
-    if (type == 'DAILY') return '오늘 ${count}회 제출';
-    if (type == 'WEEKLY') return '이번 주 ${count}회 제출';
+    if (type == 'DAILY') return '오늘 $count회 제출';
+    if (type == 'WEEKLY') return '이번 주 $count회 제출';
     return '인증 방식 미정';
   }
 
