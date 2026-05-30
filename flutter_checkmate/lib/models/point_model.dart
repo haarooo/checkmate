@@ -4,7 +4,7 @@ class PointWalletModel {
   final int balance;
 
   factory PointWalletModel.fromJson(Map<String, dynamic> json) {
-    return PointWalletModel(balance: (json['balance'] as num).toInt());
+    return PointWalletModel(balance: (json['balance'] as num?)?.toInt() ?? 0);
   }
 }
 
@@ -27,12 +27,12 @@ class PointLedgerModel {
 
   factory PointLedgerModel.fromJson(Map<String, dynamic> json) {
     return PointLedgerModel(
-      id: (json['id'] as num).toInt(),
-      amount: (json['amount'] as num).toInt(),
-      balanceAfter: (json['balanceAfter'] as num).toInt(),
-      type: json['type'] as String,
-      description: json['description'] as String? ?? '',
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      amount: (json['amount'] as num?)?.toInt() ?? 0,
+      balanceAfter: (json['balanceAfter'] as num?)?.toInt() ?? 0,
+      type: json['type']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
     );
   }
 }

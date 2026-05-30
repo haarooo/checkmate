@@ -47,9 +47,7 @@ class ProofService {
   Future<List<ProofFeedItemModel>> getProofFeed(int roomId) async {
     final response = await apiClient.dio.get('/api/rooms/$roomId/proofs');
     final data = response.data as List;
-    return data
-        .map((item) => ProofFeedItemModel.fromJson(item as Map<String, dynamic>))
-        .toList();
+    return data.map((item) => ProofFeedItemModel.fromJson(item as Map<String, dynamic>)).toList();
   }
 
   Future<Map<String, dynamic>> confirmProof(int proofId) async {
@@ -65,9 +63,7 @@ class ProofService {
 
     final lower = fileName.toLowerCase();
     if (lower.endsWith('.png')) return MediaType('image', 'png');
-    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
-      return MediaType('image', 'jpeg');
-    }
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return MediaType('image', 'jpeg');
     if (lower.endsWith('.webp')) return MediaType('image', 'webp');
     if (lower.endsWith('.gif')) return MediaType('image', 'gif');
     if (lower.endsWith('.mp4')) return MediaType('video', 'mp4');

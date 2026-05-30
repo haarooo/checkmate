@@ -1,13 +1,4 @@
 class NotificationModel {
-  final int id;
-  final int? roomId;
-  final String type;
-  final String title;
-  final String message;
-  final bool read;
-  final DateTime? readAt;
-  final DateTime createdAt;
-
   const NotificationModel({
     required this.id,
     this.roomId,
@@ -19,19 +10,25 @@ class NotificationModel {
     required this.createdAt,
   });
 
+  final int id;
+  final int? roomId;
+  final String type;
+  final String title;
+  final String message;
+  final bool read;
+  final DateTime? readAt;
+  final DateTime createdAt;
+
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     return NotificationModel(
-      id: json['id'] as int,
-      roomId: json['roomId'] as int?,
-      type: json['type'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      message: json['message'] as String? ?? '',
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      roomId: (json['roomId'] as num?)?.toInt(),
+      type: json['type']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      message: json['message']?.toString() ?? '',
       read: json['read'] as bool? ?? false,
-      readAt: json['readAt'] != null
-          ? DateTime.tryParse(json['readAt'] as String)
-          : null,
-      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
-          DateTime.now(),
+      readAt: json['readAt'] != null ? DateTime.tryParse(json['readAt'].toString()) : null,
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
     );
   }
 

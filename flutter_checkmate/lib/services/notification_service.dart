@@ -9,9 +9,7 @@ class NotificationService {
   Future<List<NotificationModel>> getNotifications() async {
     final response = await apiClient.dio.get('/api/notifications');
     final data = response.data as List;
-    return data
-        .map((item) => NotificationModel.fromJson(item as Map<String, dynamic>))
-        .toList();
+    return data.map((item) => NotificationModel.fromJson(item as Map<String, dynamic>)).toList();
   }
 
   Future<int> getUnreadCount() async {

@@ -98,7 +98,7 @@ class RoomDetailModel {
       inviteLinkToken: _readNullableString(json['inviteLinkToken']),
       durationDays: _readInt(json['durationDays']),
       deadlineTime: _readString(json['deadlineTime']),
-      targetRate: _readInt(json['targetRate']),
+      targetRate: _readInt(json['targetRate'], defaultValue: 80),
       stakePoint: _readInt(json['stakePoint']),
       maxMembers: _readInt(json['maxMembers']),
       potPoint: _readInt(json['potPoint']),
@@ -183,7 +183,7 @@ class RoomInvitePreviewModel {
       status: _readString(json['status']),
       durationDays: _readInt(json['durationDays']),
       deadlineTime: _readString(json['deadlineTime']),
-      targetRate: _readInt(json['targetRate']),
+      targetRate: _readInt(json['targetRate'], defaultValue: 80),
       stakePoint: _readInt(json['stakePoint']),
       maxMembers: _readInt(json['maxMembers']),
       currentMemberCount: _readInt(json['currentMemberCount']),
@@ -193,8 +193,6 @@ class RoomInvitePreviewModel {
     );
   }
 }
-
-// ─── private helpers ─────────────────────────────────────────────────────────
 
 int _readInt(dynamic value, {int defaultValue = 0}) {
   if (value == null) return defaultValue;
@@ -210,7 +208,8 @@ String _readString(dynamic value, {String defaultValue = ''}) {
 
 String? _readNullableString(dynamic value) {
   if (value == null) return null;
-  return value.toString();
+  final s = value.toString().trim();
+  return s.isEmpty ? null : s;
 }
 
 DateTime? _readNullableDate(dynamic value) {

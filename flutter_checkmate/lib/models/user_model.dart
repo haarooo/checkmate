@@ -15,11 +15,11 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: (json['id'] as num).toInt(),
-      email: json['email'] as String,
-      name: json['name'] as String,
-      nickname: json['nickname'] as String,
-      role: json['role'] as String,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      email: json['email']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      nickname: json['nickname']?.toString() ?? '',
+      role: json['role']?.toString() ?? '',
     );
   }
 }
@@ -37,8 +37,8 @@ class LoginResponseModel {
 
   factory LoginResponseModel.fromJson(Map<String, dynamic> json) {
     return LoginResponseModel(
-      tokenType: json['tokenType'] as String,
-      accessToken: json['accessToken'] as String,
+      tokenType: json['tokenType']?.toString() ?? 'Bearer',
+      accessToken: json['accessToken']?.toString() ?? '',
       user: UserModel.fromJson(json),
     );
   }

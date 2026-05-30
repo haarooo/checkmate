@@ -8,9 +8,12 @@ import '../screens/home_screen.dart';
 import '../screens/join_room_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/member_status_screen.dart';
+import '../screens/mission_rooms_screen.dart';
 import '../screens/my_page_screen.dart';
 import '../screens/notification_screen.dart';
+import '../screens/point_history_screen.dart';
 import '../screens/proof_feed_screen.dart';
+import '../screens/proof_hub_screen.dart';
 import '../screens/room_chat_screen.dart';
 import '../screens/room_dashboard_screen.dart';
 import '../screens/settlement_result_screen.dart';
@@ -62,6 +65,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AppContainer(child: HomeScreen()),
       ),
       GoRoute(
+        path: '/proof',
+        builder: (context, state) => const AppContainer(child: ProofHubScreen()),
+      ),
+      GoRoute(
+        path: '/rooms',
+        builder: (context, state) => const AppContainer(child: MissionRoomsScreen()),
+      ),
+      GoRoute(
+        path: '/points',
+        builder: (context, state) => const AppContainer(child: PointHistoryScreen()),
+      ),
+      GoRoute(
         path: '/rooms/create',
         builder: (context, state) => const AppContainer(child: CreateRoomScreen()),
       ),
@@ -69,7 +84,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/rooms/join',
         builder: (context, state) => const AppContainer(child: JoinRoomScreen()),
       ),
-
       GoRoute(
         path: '/invite/:inviteLinkToken',
         builder: (context, state) => AppContainer(
@@ -160,7 +174,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
   );
 });
-
 
 int? _parseRoomId(GoRouterState state) {
   final value = state.pathParameters['roomId'];

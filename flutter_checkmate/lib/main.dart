@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'app/app_router.dart';
-import 'core/theme/app_colors.dart';
 import 'firebase_options.dart';
+import 'ui/checkmate_ui.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,11 +16,9 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Android에서는 바로 FCM token 확인
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     final permission = await FirebaseMessaging.instance.requestPermission();
     debugPrint('FCM PERMISSION: ${permission.authorizationStatus}');
-
     final fcmToken = await FirebaseMessaging.instance.getToken();
     debugPrint('FCM TOKEN: $fcmToken');
   } else {
@@ -36,18 +35,19 @@ class CheckmateApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
 
+    final baseTheme = ThemeData(
+      useMaterial3: true,
+      primaryColor: CMColors.blue,
+      colorScheme: ColorScheme.fromSeed(seedColor: CMColors.blue, primary: CMColors.blue),
+      scaffoldBackgroundColor: CMColors.bg,
+    );
+
     return MaterialApp.router(
       title: 'Checkmate',
       debugShowCheckedModeBanner: false,
       routerConfig: router,
-      theme: ThemeData(
-        primaryColor: AppColors.primary,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          primary: AppColors.primary,
-        ),
-        scaffoldBackgroundColor: AppColors.background,
-        useMaterial3: true,
+      theme: baseTheme.copyWith(
+        textTheme: GoogleFonts.notoSansKrTextTheme(baseTheme.textTheme),
       ),
     );
   }

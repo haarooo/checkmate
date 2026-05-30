@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/network/api_client.dart';
 import '../core/providers/app_providers.dart';
-import '../core/theme/app_colors.dart';
 import '../models/notification_model.dart';
+import '../ui/checkmate_ui.dart';
 
 class NotificationScreen extends ConsumerStatefulWidget {
   const NotificationScreen({super.key});
@@ -15,363 +14,253 @@ class NotificationScreen extends ConsumerStatefulWidget {
 }
 
 class _NotificationScreenState extends ConsumerState<NotificationScreen> {
-  List<NotificationModel> _notifications = [];
-  bool _isLoading = true;
-  String? _error;
-  bool _showReadOnly = false;
+  late Future<List<NotificationModel>> future;
+  int tab = 0;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    future = ref.read(notificationServiceProvider).getNotifications();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-    try {
-      final items = await ref.read(notificationServiceProvider).getNotifications();
-      if (mounted) setState(() => _notifications = items);
-    } catch (e) {
-      if (mounted) setState(() => _error = ApiClient.messageFromError(e));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+  void _refresh() {
+    setState(() => future = ref.read(notificationServiceProvider).getNotifications());
   }
 
-  Future<void> _markAsRead(NotificationModel n) async {
-    if (n.read) {
-      if (n.roomId != null) context.push('/rooms/${n.roomId}');
-      return;
-    }
-
-    // 낙관적 업데이트
-    setState(() {
-      _notifications = _notifications.map((item) {
-        return item.id == n.id
-            ? item.copyWith(read: true, readAt: DateTime.now())
-            : item;
-      }).toList();
-    });
-
-    try {
-      await ref.read(notificationServiceProvider).markAsRead(n.id);
-    } catch (e) {
-      if (mounted) {
-        // 실패 시 롤백
-        setState(() {
-          _notifications = _notifications.map((item) {
-            return item.id == n.id ? n : item;
-          }).toList();
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(ApiClient.messageFromError(e)),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-      return; // 실패 시 방 이동 없이 종료
-    }
-
-    if (mounted && n.roomId != null) {
-      context.push('/rooms/${n.roomId}');
-    }
+  Future<void> _markAllRead() async {
+    await ref.read(notificationServiceProvider).markAllAsRead();
+    _refresh();
   }
 
-  Future<void> _markAllAsRead() async {
-    final hasUnread = _notifications.any((n) => !n.read);
-    if (!hasUnread) return;
-
-    try {
-      await ref.read(notificationServiceProvider).markAllAsRead();
-      if (mounted) {
-        setState(() {
-          _notifications = _notifications.map((n) {
-            return n.read ? n : n.copyWith(read: true, readAt: DateTime.now());
-          }).toList();
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(ApiClient.messageFromError(e)),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+  Future<void> _open(NotificationModel notification) async {
+    if (!notification.read) {
+      await ref.read(notificationServiceProvider).markAsRead(notification.id);
+    }
+    if (!mounted) return;
+    if (notification.roomId != null) {
+      context.push('/rooms/${notification.roomId}');
+    } else {
+      _refresh();
     }
   }
-
-  List<NotificationModel> get _filtered {
-    if (_showReadOnly) return _notifications.where((n) => n.read).toList();
-    return _notifications;
-  }
-
-  bool get _hasUnread => _notifications.any((n) => !n.read);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          _header(),
-          _filterBar(),
-          Container(height: 1, color: AppColors.border),
-          Expanded(child: _body()),
-        ],
+    return CMPage(
+      bottom: CMBottomNav(
+        current: 'my',
+        onTap: (key) {
+          if (key == 'home') context.go('/home');
+          if (key == 'rooms') context.go('/rooms');
+          if (key == 'proof') context.go('/proof');
+          if (key == 'my') context.go('/mypage');
+        },
       ),
-    );
-  }
+      padding: const EdgeInsets.fromLTRB(24, 26, 24, 92),
+      child: FutureBuilder<List<NotificationModel>>(
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: CMColors.blue));
+          }
+          if (snapshot.hasError) {
+            return CMErrorView(message: '알림을 불러오지 못했어요.', onRetry: _refresh);
+          }
 
-  Widget _header() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(8, 16, 16, 16),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: AppColors.textPrimary),
-            onPressed: () => context.pop(),
-          ),
-          const Expanded(
-            child: Text(
-              '알림',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-            ),
-          ),
-          TextButton(
-            onPressed: _hasUnread ? _markAllAsRead : null,
-            child: Text(
-              '모두 읽음',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: _hasUnread ? AppColors.primary : AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+          final notifications = snapshot.data ?? [];
+          final unreadCount = notifications.where((e) => !e.read).length;
+          final visible = _filter(notifications);
+          final unread = visible.where((e) => !e.read).toList();
+          final read = visible.where((e) => e.read).toList();
 
-  Widget _filterBar() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Row(
-        children: [
-          _filterChip(label: '전체', selected: !_showReadOnly, onTap: () => setState(() => _showReadOnly = false)),
-          const SizedBox(width: 8),
-          _filterChip(label: '읽은 알림', selected: _showReadOnly, onTap: () => setState(() => _showReadOnly = true)),
-        ],
-      ),
-    );
-  }
-
-  Widget _filterChip({required String label, required bool selected, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? AppColors.primary : AppColors.border),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: selected ? Colors.white : AppColors.textSecondary,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _body() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-              const SizedBox(height: 12),
-              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _load,
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                child: const Text('다시 시도', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final items = _filtered;
-
-    if (items.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.notifications_none_outlined, size: 56, color: AppColors.textSecondary.withValues(alpha: 0.4)),
-              const SizedBox(height: 16),
-              const Text(
-                '아직 알림이 없어요',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                '미션 시작, 인증 제출, 정산 알림이\n여기에 표시돼요.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _load,
-      color: AppColors.primary,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: items.length,
-        itemBuilder: (context, index) => _notificationCard(items[index]),
-      ),
-    );
-  }
-
-  Widget _notificationCard(NotificationModel n) {
-    final isUnread = !n.read;
-    return GestureDetector(
-      onTap: () => _markAsRead(n),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        decoration: BoxDecoration(
-          color: isUnread ? const Color(0xFFEFF6FF) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isUnread ? const Color(0xFFBFDBFE) : AppColors.border,
-          ),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 1)),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 읽음 여부 파란 점
-            Padding(
-              padding: const EdgeInsets.only(left: 12, top: 20),
-              child: Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isUnread ? AppColors.primary : Colors.transparent,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // 타입 아이콘
-            Padding(
-              padding: const EdgeInsets.only(top: 14),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: _iconBgColor(n.type),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(_typeEmoji(n.type), style: const TextStyle(fontSize: 16)),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            // 본문
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 14, 12, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      n.title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: isUnread ? FontWeight.bold : FontWeight.w500,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      n.message,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.4),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _relativeTime(n.createdAt),
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withValues(alpha: 0.7)),
+          return RefreshIndicator(
+            onRefresh: () async => _refresh(),
+            color: CMColors.blue,
+            child: ListView(
+              padding: EdgeInsets.zero,
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                CMTopBar(
+                  title: '알림 센터',
+                  onBack: () => context.canPop() ? context.pop() : context.go('/mypage'),
+                  actions: [
+                    IconButton(
+                      onPressed: _markAllRead,
+                      icon: const Icon(Icons.check_circle_outline_rounded, color: CMColors.text),
                     ),
                   ],
                 ),
+                const SizedBox(height: 20),
+                _NotificationTabs(current: tab, unreadCount: unreadCount, onChanged: (v) => setState(() => tab = v)),
+                const SizedBox(height: 24),
+                Text('읽지 않은 알림 ${unread.length}', style: const TextStyle(fontSize: 14, color: CMColors.text, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 12),
+                if (unread.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('새 알림이 없어요.', style: TextStyle(fontSize: 12, color: CMColors.sub)),
+                  )
+                else
+                  CMCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: unread.map((n) => _NotificationTile(notification: n, onTap: () => _open(n))).toList(),
+                    ),
+                  ),
+                const SizedBox(height: 26),
+                const Text('이전 알림', style: TextStyle(fontSize: 14, color: CMColors.text, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 12),
+                if (read.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('이전 알림이 없어요.', style: TextStyle(fontSize: 12, color: CMColors.sub)),
+                  )
+                else
+                  CMCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: read.take(6).map((n) => _NotificationTile(notification: n, onTap: () => _open(n))).toList(),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  List<NotificationModel> _filter(List<NotificationModel> items) {
+    if (tab == 1) return items.where((e) => e.type == 'PROOF_SUBMITTED' || e.type == 'PROOF_CONFIRMED').toList();
+    if (tab == 2) return items.where((e) => e.type == 'ROOM_STARTED').toList();
+    if (tab == 3) return items.where((e) => e.type == 'ROOM_SETTLED').toList();
+    return items;
+  }
+}
+
+class _NotificationTabs extends StatelessWidget {
+  const _NotificationTabs({
+    required this.current,
+    required this.unreadCount,
+    required this.onChanged,
+  });
+
+  final int current;
+  final int unreadCount;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = ['전체', '인증', '미션방', '정산'];
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(color: const Color(0xFFEEF2F7), borderRadius: BorderRadius.circular(18)),
+      child: Row(
+        children: List.generate(labels.length, (i) {
+          final selected = current == i;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(i),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: selected ? CMColors.blue : Colors.transparent, borderRadius: BorderRadius.circular(15)),
+                    child: Text(labels[i], style: TextStyle(color: selected ? Colors.white : CMColors.sub, fontSize: 11, fontWeight: FontWeight.w900)),
+                  ),
+                  if (i == 0 && unreadCount > 0)
+                    Positioned(
+                      top: -8,
+                      right: 13,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(color: CMColors.red, borderRadius: BorderRadius.circular(99)),
+                        child: Text('$unreadCount', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900)),
+                      ),
+                    ),
+                ],
               ),
             ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({required this.notification, required this.onTap});
+
+  final NotificationModel notification;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _color(notification.type);
+    final icon = _icon(notification.type);
+
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 16, 14, 16),
+        decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: CMColors.line))),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(15)),
+              child: Icon(icon, color: Colors.white, size: 25),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(notification.title, style: const TextStyle(fontSize: 14, color: CMColors.text, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 4),
+                Text(notification.message, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: CMColors.sub, height: 1.35)),
+                const SizedBox(height: 5),
+                Text(timeAgo(notification.createdAt), style: const TextStyle(fontSize: 10, color: CMColors.muted)),
+              ]),
+            ),
+            if (!notification.read)
+              Container(width: 8, height: 8, decoration: const BoxDecoration(color: CMColors.blue, shape: BoxShape.circle))
+            else
+              const Icon(Icons.chevron_right_rounded, color: CMColors.muted),
           ],
         ),
       ),
     );
   }
 
-  String _typeEmoji(String type) {
+  IconData _icon(String type) {
     switch (type) {
-      case 'ROOM_STARTED':    return '🚀';
-      case 'PROOF_SUBMITTED': return '📷';
-      case 'PROOF_CONFIRMED': return '✅';
-      case 'ROOM_SETTLED':    return '🏆';
-      default:                return '🔔';
+      case 'PROOF_SUBMITTED':
+        return Icons.image_rounded;
+      case 'PROOF_CONFIRMED':
+        return Icons.verified_rounded;
+      case 'ROOM_STARTED':
+        return Icons.flag_rounded;
+      case 'ROOM_SETTLED':
+        return Icons.toll_rounded;
+      default:
+        return Icons.notifications_rounded;
     }
   }
 
-  Color _iconBgColor(String type) {
+  Color _color(String type) {
     switch (type) {
-      case 'ROOM_STARTED':    return const Color(0xFFEFF6FF);
-      case 'PROOF_SUBMITTED': return const Color(0xFFF0FDF4);
-      case 'PROOF_CONFIRMED': return const Color(0xFFF0FDF4);
-      case 'ROOM_SETTLED':    return const Color(0xFFFFFBEB);
-      default:                return const Color(0xFFF3F4F6);
+      case 'PROOF_SUBMITTED':
+        return CMColors.purple;
+      case 'PROOF_CONFIRMED':
+        return CMColors.green;
+      case 'ROOM_STARTED':
+        return CMColors.blue;
+      case 'ROOM_SETTLED':
+        return CMColors.orange;
+      default:
+        return CMColors.blue;
     }
-  }
-
-  String _relativeTime(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return '방금 전';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
-    if (diff.inHours < 24) return '${diff.inHours}시간 전';
-    if (diff.inDays < 7) return '${diff.inDays}일 전';
-    return '${dt.month}/${dt.day}';
   }
 }

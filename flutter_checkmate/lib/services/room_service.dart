@@ -10,9 +10,7 @@ class RoomService {
   Future<List<RoomSummaryModel>> getMyRooms() async {
     final response = await apiClient.dio.get('/api/rooms');
     final data = response.data as List;
-    return data
-        .map((item) => RoomSummaryModel.fromJson(item as Map<String, dynamic>))
-        .toList();
+    return data.map((item) => RoomSummaryModel.fromJson(item as Map<String, dynamic>)).toList();
   }
 
   Future<RoomDetailModel> createRoom({
@@ -50,9 +48,7 @@ class RoomService {
   Future<List<RoomMemberModel>> getRoomMembers(int roomId) async {
     final response = await apiClient.dio.get('/api/rooms/$roomId/members');
     final data = response.data as List;
-    return data
-        .map((item) => RoomMemberModel.fromJson(item as Map<String, dynamic>))
-        .toList();
+    return data.map((item) => RoomMemberModel.fromJson(item as Map<String, dynamic>)).toList();
   }
 
   Future<RoomInvitePreviewModel> getInvitePreview(String inviteLinkToken) async {
@@ -64,11 +60,7 @@ class RoomService {
     required int roomId,
     required String inviteCode,
   }) async {
-    final response = await apiClient.dio.post(
-      '/api/rooms/$roomId/join',
-      data: {'inviteCode': inviteCode},
-    );
-
+    final response = await apiClient.dio.post('/api/rooms/$roomId/join', data: {'inviteCode': inviteCode});
     return RoomDetailModel.fromJson(response.data as Map<String, dynamic>);
   }
 

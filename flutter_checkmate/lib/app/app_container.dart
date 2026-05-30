@@ -7,6 +7,8 @@ class AppContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 웹/데스크톱 시연용 390x844 모바일 프레임.
+    // 실제 모바일 빌드에서도 화면 내부 child는 그대로 정상 동작한다.
     return Scaffold(
       backgroundColor: const Color(0xFFE5E7EB),
       body: Center(
@@ -18,7 +20,7 @@ class AppContainer extends StatelessWidget {
             borderRadius: BorderRadius.circular(40),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
+                color: Colors.black.withValues(alpha: 0.20),
                 blurRadius: 30,
                 spreadRadius: 5,
               ),

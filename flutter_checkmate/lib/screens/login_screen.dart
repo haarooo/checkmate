@@ -1,4 +1,3 @@
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../core/network/api_client.dart';
 import '../core/providers/auth_controller.dart';
+import '../ui/checkmate_ui.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +19,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final passwordController = TextEditingController();
 
   bool isLoading = false;
+  bool obscurePassword = true;
   String? errorMessage;
 
   @override
@@ -33,7 +34,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => errorMessage = '이메일과 비밀번호를 입력하세요.');
+      setState(() => errorMessage = '이메일과 비밀번호를 입력해 주세요.');
       return;
     }
 
@@ -60,138 +61,59 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF3B82F6),
-            Color(0xFF2563EB),
-          ],
-        ),
-      ),
-      child: Column(
+    return Scaffold(
+      backgroundColor: CMColors.bg,
+      resizeToAvoidBottomInset: true,
+      body: Stack(
         children: [
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.check_circle_outline,
-                    size: 48,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Checkmate',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '친구들과 함께 인증하고\n끝까지 완주하기',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                ],
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF0B61FF), CMColors.blue2],
+                ),
               ),
             ),
           ),
-          Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(32),
-                topRight: Radius.circular(32),
+          Positioned(
+            left: -80,
+            top: 150,
+            child: Container(
+              width: 480,
+              height: 300,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(260),
               ),
             ),
-            padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+          ),
+          Positioned(
+            right: 42,
+            top: 82,
+            child: Icon(Icons.auto_awesome_rounded, color: Colors.white.withValues(alpha: 0.8), size: 28),
+          ),
+          Positioned(
+            left: 44,
+            top: 330,
+            child: Icon(Icons.auto_awesome_rounded, color: Colors.white.withValues(alpha: 0.65), size: 22),
+          ),
+          SafeArea(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  '로그인',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _buildTextField(
-                  label: '이메일',
-                  hint: 'example@email.com',
-                  controller: emailController,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  label: '비밀번호',
-                  hint: '••••••••',
-                  controller: passwordController,
-                  obscureText: true,
-                ),
-                if (errorMessage != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    errorMessage!,
-                    style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: isLoading ? null : login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: isLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text(
-                            '로그인',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: GestureDetector(
-                    onTap: () => context.go('/signup'),
-                    child: RichText(
-                      text: const TextSpan(
-                        style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                        children: [
-                          TextSpan(text: '계정이 없으신가요? '),
-                          TextSpan(
-                            text: '회원가입',
-                            style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                const SizedBox(height: 52),
+                _BrandHero(),
+                const Spacer(),
+                _LoginPanel(
+                  emailController: emailController,
+                  passwordController: passwordController,
+                  obscurePassword: obscurePassword,
+                  errorMessage: errorMessage,
+                  isLoading: isLoading,
+                  onToggleObscure: () => setState(() => obscurePassword = !obscurePassword),
+                  onLogin: login,
+                  onSignup: () => context.go('/signup'),
                 ),
               ],
             ),
@@ -200,51 +122,182 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
+}
 
-  Widget _buildTextField({
-    required String label,
-    required String hint,
-    required TextEditingController controller,
-    bool obscureText = false,
-    TextInputType? keyboardType,
-  }) {
+class _BrandHero extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF374151),
+        Container(
+          width: 86,
+          height: 86,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.16),
+                blurRadius: 30,
+                offset: const Offset(0, 18),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.check_rounded, color: CMColors.blue, size: 58),
+        ),
+        const SizedBox(height: 34),
+        const Text(
+          'Checkmate',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 42,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -1.1,
           ),
         ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: controller,
-          obscureText: obscureText,
-          keyboardType: keyboardType,
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 2),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        const SizedBox(height: 18),
+        Text(
+          '친구들과 함께 인증하고,\n끝까지 완주하기',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.94),
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            height: 1.45,
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LoginPanel extends StatelessWidget {
+  const _LoginPanel({
+    required this.emailController,
+    required this.passwordController,
+    required this.obscurePassword,
+    required this.errorMessage,
+    required this.isLoading,
+    required this.onToggleObscure,
+    required this.onLogin,
+    required this.onSignup,
+  });
+
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
+  final bool obscurePassword;
+  final String? errorMessage;
+  final bool isLoading;
+  final VoidCallback onToggleObscure;
+  final VoidCallback onLogin;
+  final VoidCallback onSignup;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(28, 30, 28, 30),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('다시 만나서 반가워요! 👋', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900, color: CMColors.text)),
+          const SizedBox(height: 7),
+          const Text('로그인하고 미션을 이어가세요.', style: TextStyle(fontSize: 12, color: CMColors.sub)),
+          const SizedBox(height: 26),
+          _AuthField(
+            controller: emailController,
+            hint: 'example@email.com',
+            icon: Icons.mail_outline_rounded,
+            keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 14),
+          _AuthField(
+            controller: passwordController,
+            hint: '비밀번호 입력',
+            icon: Icons.lock_outline_rounded,
+            obscureText: obscurePassword,
+            suffix: IconButton(
+              onPressed: onToggleObscure,
+              icon: Icon(
+                obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                color: CMColors.muted,
+                size: 20,
+              ),
+            ),
+          ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: 12),
+            Text(errorMessage!, style: const TextStyle(color: CMColors.red, fontSize: 12, fontWeight: FontWeight.w700)),
+          ],
+          const SizedBox(height: 26),
+          CMPrimaryButton(label: '로그인', onPressed: onLogin, loading: isLoading),
+          const SizedBox(height: 52),
+          Center(
+            child: GestureDetector(
+              onTap: onSignup,
+              child: RichText(
+                text: const TextSpan(
+                  style: TextStyle(fontSize: 13, color: CMColors.sub),
+                  children: [
+                    TextSpan(text: '계정이 없으신가요? '),
+                    TextSpan(
+                      text: '회원가입',
+                      style: TextStyle(color: CMColors.blue, fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthField extends StatelessWidget {
+  const _AuthField({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.keyboardType,
+    this.obscureText = false,
+    this.suffix,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final TextInputType? keyboardType;
+  final bool obscureText;
+  final Widget? suffix;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 52,
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        obscureText: obscureText,
+        style: const TextStyle(fontSize: 14, color: CMColors.text, fontWeight: FontWeight.w700),
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: CMColors.muted, size: 20),
+          suffixIcon: suffix,
+          hintText: hint,
+          hintStyle: const TextStyle(color: CMColors.sub, fontWeight: FontWeight.w500),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: CMColors.line)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFD8DEE8))),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: CMColors.blue, width: 1.5)),
+        ),
+      ),
     );
   }
 }

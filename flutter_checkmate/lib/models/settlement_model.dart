@@ -62,7 +62,7 @@ class SettlementMemberModel {
 
   final int userId;
   final String nickname;
-  final String resultStatus; // SUCCESS or FAILED
+  final String resultStatus;
   final int submittedCount;
   final int confirmedCount;
   final int requiredSuccessCount;
