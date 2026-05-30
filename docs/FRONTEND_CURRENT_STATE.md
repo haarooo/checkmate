@@ -1,391 +1,669 @@
 # FRONTEND_CURRENT_STATE.md
 
-마지막 업데이트: 2026-05-25
+이 문서는 Checkmate Flutter 프론트엔드의 현재 구현 상태를 이어받기 위한 기준 문서다.  
+백엔드 구현 상태는 `docs/CURRENT_STATE.md`, API 정책은 `docs/03_API_SPEC.md`, 비즈니스 정책은 `docs/01_BUSINESS_RULES.md`를 함께 확인한다.
+
+마지막 정리 기준: 2026-05-30  
+대상: Flutter 프론트 (`flutter_checkmate`)
 
 ---
 
-## 1. 프론트 위치
+## 1. 프론트 역할
 
-- Flutter 프론트 폴더: `flutter_checkmate`
-- 백엔드 Spring Boot 폴더와 같은 `checkmate` 루트 안에 있음
+Checkmate 프론트는 Spring Boot 백엔드에 구현된 미션방 흐름을 모바일 앱 화면으로 연결한다.
+
+```text
+로그인 / 세션 복구
+→ 내 방 목록
+→ 방 생성 또는 초대 참여
+→ 예치금 납부
+→ 미션 시작 상태 확인
+→ 인증 제출
+→ 인증 피드에서 멤버 인증 확인
+→ 멤버별 현황 조회
+→ 정산 결과 확인
+→ 알림 확인
+→ 방 채팅
+```
+
+현재 프론트는 MVP 핵심 흐름과 2차 기능 일부까지 백엔드 API와 연결되어 있다.
+
+---
+
+## 2. 프로젝트 위치와 기술 스택
+
+위치:
 - 백엔드: `src/main/java/...`
 - 프론트: `flutter_checkmate/lib/...`
 
----
+기술 스택:
 
-## 2. Flutter 기술 스택
-
-`pubspec.yaml` 기준:
-
-| 항목 | 패키지 |
-|------|--------|
+| 역할 | 사용 기술 |
+|---|---|
 | Framework | Flutter |
-| 상태관리 | flutter_riverpod |
+| 상태 관리 | flutter_riverpod |
 | 라우팅 | go_router |
 | HTTP Client | dio |
 | 토큰 저장 | shared_preferences |
-| 이미지 업로드 | image_picker |
-| Multipart 지원 | http_parser |
+| 이미지 선택 | image_picker |
+| Multipart | http_parser |
 | 날짜/포맷 | intl |
-| Firebase Core | firebase_core |
+| Firebase | firebase_core |
 | Push 알림 | firebase_messaging |
 | WebSocket/STOMP | stomp_dart_client |
 
----
-
-## 3. 핵심 진입 구조
-
-- 진입점: `flutter_checkmate/lib/main.dart`
-- `ProviderScope`로 앱 시작
-- `MaterialApp.router` 사용
-- `appRouterProvider` 사용
+앱 진입:
+- `lib/main.dart`
+- `ProviderScope`
+- `MaterialApp.router`
+- `appRouterProvider`
 
 ---
 
-## 4. 라우팅 구조
+## 3. 프론트 구조
 
-`lib/app/app_router.dart` 기준:
+```text
+lib/
+├─ app/
+│  ├─ app_router.dart
+│  └─ app_container.dart
+├─ core/
+│  ├─ constants/
+│  ├─ network/
+│  ├─ providers/
+│  ├─ storage/
+│  ├─ theme/
+│  └─ utils/
+├─ models/
+├─ screens/
+├─ services/
+└─ widgets/
+```
 
-| 경로 | 화면 |
-|------|------|
-| `/splash` | SplashScreen |
-| `/login` | LoginScreen |
-| `/signup` | SignupScreen |
-| `/home` | HomeScreen |
-| `/rooms/create` | CreateRoomScreen |
-| `/rooms/join` | JoinRoomScreen |
-| `/invite/:inviteLinkToken` | InviteScreen |
-| `/rooms/:roomId` | RoomDashboardScreen |
-| `/rooms/:roomId/members` | MemberStatusScreen |
-| `/rooms/:roomId/submit-proof` | SubmitProofScreen |
-| `/rooms/:roomId/proofs` | ProofFeedScreen |
-| `/rooms/:roomId/chat` | RoomChatScreen |
-| `/rooms/:roomId/settlement` | SettlementResultScreen |
-| `/notifications` | NotificationScreen |
-| `/mypage` | MyPageScreen |
+연결 흐름:
 
----
-
-## 5. 백엔드 연결 테스트 결과
-
-### 성공한 기능 (전체 완료)
-- 회원가입 / 로그인 / 로그아웃
-- 보유 포인트 조회 (회원가입 시 100,000 포인트 지급 확인)
-- 인증방 생성 후 상세 화면 진입
-- 홈에서 내가 참여 중인 방 목록 조회
-- 홈에서 방 클릭 → 상세 화면 진입 (TypeError 해결 완료)
-- 초대링크/초대코드 복사
-- 초대링크로 방 참여 (URL 정규화 처리 완료)
-- 인증 제출 (`POST /api/rooms/{roomId}/proofs`, multipart/form-data)
-- 인증 피드 조회 (`GET /api/rooms/{roomId}/proofs`, 실제 API 연결 완료)
-- 인증 확인 (`POST /api/proofs/{proofId}/confirm`)
-- 알림함 목록 조회 (`GET /api/notifications`) 성공
-- 알림 클릭 읽음 처리 (`PUT /api/notifications/{id}/read`) 성공
-- 모두 읽음 처리 (`PUT /api/notifications/read-all`) 성공
-- roomId 기반 알림 → 방 상세 이동 성공
-- 홈 화면 알림 unread badge 표시 및 갱신 성공
-- Android 에뮬레이터 ROOM_STARTED 알림 수신 후 알림함 확인 성공
-
-### 현재 오류
-- 없음 (알려진 TypeError 모두 해결, 에러 메시지 사용자 친화적으로 개선 완료)
-
----
-
-## 6. 백엔드 API 응답 구조 주의점
-
-백엔드 Room 응답 DTO에서 `id`와 `roomId`가 혼재되어 있다.
-
-| API | 응답 클래스 | id 필드명 |
-|-----|-------------|-----------|
-| `POST /api/rooms` | `RoomDetailResponse` | `id` |
-| `GET /api/rooms` | `RoomSummaryResponse` | `id` |
-| `GET /api/rooms/{roomId}` | `RoomDetailEnrichedResponse` | **`roomId`** ← 충돌 |
-
-Flutter 모델에서는 아래처럼 helper를 사용해 둘 다 허용 처리됨:
-
-```dart
-id: _readInt(json['roomId'] ?? json['id']),
+```text
+Screen
+→ Riverpod Provider
+→ Service
+→ ApiClient(Dio)
+→ Spring Boot API
+→ Model.fromJson()
+→ 화면 상태 갱신
 ```
 
 ---
 
-## 7. 구현 완료 내역
+## 4. 라우팅 상태
 
-### room_model.dart (전면 재작성)
-- `_readInt`, `_readString`, `_readNullableString`, `_readNullableDate`, `_readBool` helper 추가
-- `RoomDetailModel.fromJson`: `json['roomId'] ?? json['id']` 처리, 모든 필드 null-safe
-- `RoomMemberModel`: `stakedPoint`, `stakedAt` 필드 추가
+`lib/app/app_router.dart` 기준 현재 라우팅:
 
-### api_client.dart
-- `messageFromError(Object error)` 3단계 우선순위로 재구성
-  1. `response.data`(`Map` 타입 안전 처리)에서 `message → detail → error` 순서로 추출
-  2. `_isUserFriendlyMessage` 필터 통과한 경우만 반환 (100자 초과, HTML, 영문 HTTP status 텍스트, Dio 내부 문자열 차단)
-  3. statusCode 기반 한국어 기본 메시지 (`_statusCodeMessage`)
-- `_isUserFriendlyMessage(String)`: 개발자용 문자열 필터 private helper
-- `_statusCodeMessage(int)`: 400/401/403/404/409/413/500별 한국어 메시지 반환
-- connectionError / DioException 아닌 예외 → 짧은 고정 메시지 반환
-- 기존 "Spring Boot가 켜져 있는지 확인하세요." 등 개발자용 문구 제거
+| 경로 | 화면 | 설명 |
+|---|---|---|
+| `/splash` | SplashScreen | 세션 복구 중 진입 화면 |
+| `/login` | LoginScreen | 로그인 |
+| `/signup` | SignupScreen | 회원가입 |
+| `/home` | HomeScreen | 내 방 목록, 포인트, 알림 배지 |
+| `/rooms/create` | CreateRoomScreen | 방 생성 |
+| `/rooms/join` | JoinRoomScreen | 초대 링크/토큰 참여 |
+| `/invite/:inviteLinkToken` | JoinRoomScreen | 초대 링크 진입 |
+| `/rooms/:roomId` | RoomDashboardScreen | 방 상세 대시보드 |
+| `/rooms/:roomId/members` | MemberStatusScreen | 멤버별 인증 현황 |
+| `/rooms/:roomId/submit-proof` | SubmitProofScreen | 인증 제출 |
+| `/rooms/:roomId/proofs` | ProofFeedScreen | 인증 피드 / 확인 |
+| `/rooms/:roomId/chat` | RoomChatScreen | 방 채팅 |
+| `/rooms/:roomId/settlement` | SettlementResultScreen | 정산 결과 |
+| `/notifications` | NotificationScreen | 알림함 |
+| `/mypage` | MyPageScreen | 마이페이지 |
 
-### ui_mappers.dart
-- 앱 전체 UI 텍스트 변환 담당 static 유틸 클래스
-- 상태 라벨: `statusLabel`, `memberStatusLabel`, `proofProgressLabel`, `roleLabel`
-- 설명 문구: `proofProgressDescription`, `successRuleLabel`, `roomDescriptionFallback`
-- 포인트 라벨: `stakePointLabel`, `potPointLabel`, `rewardPointLabel`, `bonusPointLabel`, `feePointLabel`
-- 인증 방식: `frequencyTypeLabel`, `frequencyGoalLabel`, `currentPeriodTitle`, `remainingSubmitLabel`, `deadlineLabel`
-- const 상수: `confirmNoticeText`, `virtualPointNoticeText`, `penaltyNoticeText`, `bonusNoticeText`, `settlementPolicyTexts`
-- 주요 문구 기준
-  - `SUCCESS` → `'목표 완료'`
-  - `successRuleLabel(n)` → `'전체 인증의 n% 이상을 확인받으면 성공'`
-  - `proofProgressDescription(SUCCESS)` → `'목표를 완료했어요.'`
-
-### create_room_screen.dart
-- 미션 기간: `durationDays` 상태변수, DAILY [30/60/90/120일] / WEEKLY [28/56/84/112일] 선택 버튼
-- `_durationLabel()`: WEEKLY는 "4주 (28일)" 형식 표시
-- dateBox: `'미션 시작일' / '방장 시작 다음날'` 표시
-- 제출 목표 라벨: DAILY → `'하루 제출 목표'`, WEEKLY → `'주간 제출 목표'`
-- 예치금 안내 카드 (`_stakeInfoCard()`): 정산 정책 3줄 + 가상 포인트 안내
-- 인증 방식 안내 박스: DAILY/WEEKLY 설명 + 멤버 확인 필요 안내
-- 마감 시간 설명: DAILY/WEEKLY 조건부 텍스트
-
-### home_screen.dart
-- 앱 설명 카드 (`_appDescriptionCard()`): 포인트 카드 아래 고정 표시
-  - 포인트 3개: "예치금으로 책임감 만들기" / "멤버끼리 서로 인증을 확인" / "성공하면 예치금 반환 + 보상"
-- 방 카드: `stakePointLabel`, `frequencyTypeLabel`, `frequencyGoalLabel` 사용
-- 알림 벨 아이콘 (`_bellIcon()`): 상단 우측, unread count 빨간 배지 (99+까지 표시)
-- unread count 갱신: 홈 로드 시 `_refreshUnreadCount()` fire-and-forget, 알림함 복귀 시 `.then()`으로 재갱신
-- `_refreshUnreadCount()` 실패 시 기존 값 유지 (홈 로딩에 영향 없음)
-
-### room_dashboard_screen.dart
-- 위젯 순서: `_missionSummaryCard` → `_ruleCard` → `_todayStatusCard` → `_myStatusCard` → `_memberPreviewCard` → `_inviteCard`
-- `_missionSummaryCard`: 진행 기간, 인증 방식, 성공 기준, 내 예치금, 총 예치금, 인원, 마감 시간 표시
-- `_ruleCard`: 5줄 룰 안내 (confirmNoticeText, '확인 완료된 인증만 성공 기준에 반영돼요.', 성공/패널티/보너스)
-- `_todayStatusCard` 통계 박스 라벨: `'제출' / '확인' / '남은 제출'` (짧게 고정)
-- `_todayStatusCard` 설명 문구: `'확인 완료된 인증만 목표 달성에 반영돼요.'`
-- `_myStatusCard`: progressStatus 기반 배지 + `proofProgressDescription` 설명 문구
-- `_memberPreviewCard`: `todayStatus['members']` 우선, 없으면 members fallback. `progressStatus ?? expectedResult ?? status` 순서로 상태 읽기. role 표시 포함
-- 초대 카드: 초대코드 + 초대링크 각각 복사 버튼
-- `_buildInviteLink(String token)` helper: Android(`file://` scheme)에서 `Uri.base.origin` crash 방지, http/https일 때만 origin 사용, 그 외 상대경로(`/invite/$token`) 반환
-
-### join_room_screen.dart
-- `_extractInviteToken()`: 전체 URL 붙여넣기 시 토큰만 추출
-- 입력 레이블: `'초대 링크 또는 토큰'`, placeholder: `'초대 링크를 붙여넣어 주세요'`
-- 미리보기 카드: `frequencyTypeLabel` / `frequencyGoalLabel` / `deadlineLabel` 적용, `Icons.account_balance_wallet_outlined` 사용
-- 참여 안내 박스: 예치금 납부 안내 + 멤버 확인 필요 안내 (주황색 카드)
-
-### submit_proof_screen.dart
-- 부제목: `'미션 인증을 올려주세요'`
-- 안내 문구: 제출만으로 완료 아님, 멤버 확인 필요, 본인 확인 불가 3줄
-- 409 특화 처리: `DioException && statusCode == 409` 시 `'미션 기간이 아니거나, 마감 시간이 지났거나, 제출 가능 횟수를 초과했습니다.'` 표시
-
-### proof_feed_screen.dart
-- `ConsumerStatefulWidget` 기반, 로딩 / 에러 / 빈 상태 / 리스트 처리
-- 헤더 부제목: `'멤버들의 인증을 확인하고 성공을 응원해요'`
-- 빈 상태: `'아직 올라온 인증이 없어요.'` + `'첫 번째로 인증을 올려보세요!'`
-- 상태 배지: `'확인 완료'` / `'확인 대기'` (공백 포함)
-- 파일 URL 처리: 상대경로면 `ApiConstants.baseUrl` 앞에 붙임
-- 확인 버튼: `canConfirm` 기반, 클릭 시 silent refresh
-- 상태 표시: `isMine` / `alreadyConfirmedByMe` / `canConfirm` / 대기중 분기
-
-### member_status_screen.dart
-- 상단 요약 박스: `'목표 달성' / '확인 대기' / '추가 필요'`
-- 요약 박스 아래: `'확인 완료된 인증 수를 기준으로 목표 달성을 계산해요.'`
-- 멤버 카드 hint 4가지:
-  - required==0: `'목표가 아직 설정되지 않았어요'`
-  - confirmed>=required: `'목표를 달성했어요'`
-  - submitted>=required: `'제출은 충분해요. 멤버 확인을 기다리는 중이에요'`
-  - else: `'목표까지 확인 n개 더 필요해요'`
-- 진행률 바: `'확인 완료 confirmed/required'` 표시
-- 상태 읽기: `progressStatus ?? expectedResult ?? status` 순서
-- `_buildSummaryBox` 라벨에 `maxLines: 1, overflow: TextOverflow.ellipsis` 방어 코드
-
-### proof_model.dart
-- `ProofSubmitResponseModel.fromJson`: helpers 적용
-- `ProofFeedItemModel` 추가 (17개 필드, `proofId ?? id` 처리)
-
-### proof_service.dart
-- `getProofFeed(int roomId)`: `GET /api/rooms/{roomId}/proofs`
-- `confirmProof(int proofId)`: `POST /api/proofs/{proofId}/confirm`
-
-### 백엔드 (Proof Feed)
-- `GET /api/rooms/{roomId}/proofs` 추가 (`ProofController`)
-- `ProofFeedItemResponse` DTO 추가
-- `ProofRepository.findByRoomOrderByCreatedAtDesc` 추가
-- `ProofConfirmationRepository.countByProof` 추가
-- `ProofService.getProofFeed` 추가
-
-### notification_model.dart (신규)
-- 필드: `id`, `roomId`(nullable), `type`, `title`, `message`, `read`, `readAt`(nullable), `createdAt`
-- `fromJson`: 모든 필드 null-safe 처리
-- `copyWith`: `read`, `readAt` 낙관적 업데이트용
-
-### notification_service.dart (신규)
-- `getNotifications()`: `GET /api/notifications` → `List<NotificationModel>`
-- `getUnreadCount()`: `GET /api/notifications/unread-count` → `int`
-- `markAsRead(int id)`: `PUT /api/notifications/{id}/read`
-- `markAllAsRead()`: `PUT /api/notifications/read-all`
-
-### app_providers.dart (수정)
-- `notificationServiceProvider` 추가
-
-### notification_screen.dart (신규)
-- `ConsumerStatefulWidget` 기반
-- 필터 chip: '전체' / '읽은 알림' 토글
-- 낙관적 읽음 처리: 실패 시 rollback + snackbar, 이동 없음
-- "모두 읽음": unread 없으면 `onPressed: null` 비활성
-- 카드 클릭: 이미 읽음이면 바로 이동, 미읽음이면 API 성공 후 이동
-- roomId null이면 읽음 처리만, 이동 없음
-- type emoji: ROOM_STARTED🚀 / PROOF_SUBMITTED📷 / PROOF_CONFIRMED✅ / ROOM_SETTLED🏆
+라우팅 정책:
+- 초기 경로는 `/splash`
+- 인증되지 않은 사용자는 `/login`, `/signup`, `/invite/:inviteLinkToken` 외 접근 시 `/login`으로 이동
+- 인증된 사용자가 `/login`, `/signup`, `/splash`에 접근하면 `/home`으로 이동
+- roomId 파싱 실패 시 잘못된 방 주소 화면 표시
 
 ---
 
-## 8. 백엔드 연결 기준
+## 5. 인증과 API 연결
 
-Flutter `baseUrl`은 실행 환경별로 다르다.
+### 5.1 ApiClient
 
-| 환경 | baseUrl |
-|------|---------|
+구현 파일:
+- `core/network/api_client.dart`
+- `core/constants/api_constants.dart`
+- `core/storage/token_storage.dart`
+
+baseUrl:
+| 실행 환경 | baseUrl |
+|---|---|
 | Flutter Web | `http://localhost:8080` |
 | Android Emulator | `http://10.0.2.2:8080` |
-| 실제 휴대폰 | `http://PC의 IPv4:8080` |
+| 기타 | `http://localhost:8080` |
+| 실제 휴대폰 | 코드 수정 또는 PC IPv4 기준 별도 설정 필요 |
 
-현재 설정 위치: `lib/core/constants/api_constants.dart`
+Dio 설정:
+- connectTimeout 5초
+- receiveTimeout 5초
+- 기본 contentType JSON
+- signup/login은 Authorization 헤더 제외
+- 나머지 API는 SharedPreferences의 accessToken을 읽어 `Authorization: Bearer {token}` 자동 첨부
+- 401 발생 시 accessToken 삭제
 
-백엔드 설정:
-- CORS 설정 / OPTIONS 허용 완료
-- `Authorization: Bearer accessToken` 방식
-- 토큰 자동 첨부: `lib/core/network/api_client.dart` Interceptor 처리
-- 공개 API (signup / login)는 토큰 첨부 스킵 (`isPublicAuthApi` 분기 추가)
-
-`api_constants.dart` 변경사항:
-- `baseUrl`이 `static const String` → `static String get` (플랫폼별 동적 반환)으로 변경
-- Web: `http://localhost:8080`, Android 에뮬레이터: `http://10.0.2.2:8080`, 기타: `http://localhost:8080`
-
-`AndroidManifest.xml` 변경사항:
-- `<uses-permission android:name="android.permission.INTERNET"/>` 추가
-- `android:usesCleartextTraffic="true"` 추가 (HTTP 로컬 개발 서버 접근 허용)
-
----
-
-## 9. 다음 세션 시작 시 Claude Code가 해야 할 일
-
-1. `docs/FRONTEND_CURRENT_STATE.md` 먼저 읽기
-2. `docs/CURRENT_STATE.md` 읽어서 백엔드 현황 파악
-3. 코드 수정 전 변경 미리보기 제시
-4. 내가 Yes 하기 전까지 적용하지 않기
-
-19단계(NotificationScreen) 완료 — 다음 작업: 20단계 ActivityFeedScreen
+에러 메시지:
+- timeout
+- statusCode
+- connectionError
+- unknown
+순서로 사용자 친화적인 한국어 메시지 반환
 
 ---
 
-## 10. 금지
+### 5.2 Auth
 
-- 백엔드 API를 무작정 바꾸지 말 것
-- `id`를 `roomId`로 일괄 변경하는 대규모 수정 금지
-- 코드 수정 전 반드시 미리보기 제시
+구현 파일:
+- `services/auth_service.dart`
+- `core/providers/auth_controller.dart`
+- `models/user_model.dart`
+
+로그인:
+1. `/api/users/login` 호출
+2. accessToken 저장
+3. FCM device token 등록 시도
+4. `currentUser` 저장
+5. 인증 상태를 authenticated로 변경
+
+세션 복구:
+1. 앱 시작 시 SharedPreferences accessToken 확인
+2. 토큰이 있으면 `/api/users/me` 호출
+3. 성공 시 currentUser 복구
+4. FCM device token 재등록 시도
+5. 실패 시 로컬 토큰 삭제 후 unauthenticated
+
+로그아웃:
+1. 현재 FCM token 비활성화 시도
+2. 실패해도 로그아웃은 계속 진행
+3. accessToken 삭제
+4. 인증 상태를 unauthenticated로 변경
+
+현재 구현 특징:
+- FCM token 등록은 `auth_service.dart` 안에서 직접 처리한다.
+- 별도 `device_token_service.dart`는 아직 없다.
+- Web에서는 FCM device token 등록을 스킵한다.
+- Android/iOS만 등록 대상이다.
+- `onTokenRefresh` 자동 재등록은 미구현이며 다음 로그인/세션 복구 때 반영된다.
 
 ---
 
-## 11. Firebase / FCM 프론트 초기 설정 완료
+## 6. 화면별 구현 상태
 
-### 완료 내용
-- Firebase CLI 로그인 완료
-- FlutterFire CLI 설치 완료
-- `flutterfire configure` 실행 → `lib/firebase_options.dart` 자동 생성
-- Firebase Android / Web 초기화 성공 확인
-- Android 에뮬레이터에서 FCM 토큰 발급 확인
-- FCM 권한: `AuthorizationStatus.authorized` 확인
+### 6.1 Splash / Login / Signup
 
-### 추가 패키지 (`pubspec.yaml`)
-| 패키지 | 용도 |
-|--------|------|
-| `firebase_core` | Firebase 앱 초기화 |
-| `firebase_messaging` | FCM 토큰 발급 / 푸시 수신 |
+상태:
+- 구현 완료
 
-### 생성 / 추가 파일
-| 파일 | 설명 |
-|------|------|
-| `lib/firebase_options.dart` | FlutterFire CLI 자동 생성, 플랫폼별 Firebase 설정 |
-| `android/app/google-services.json` | Android Firebase 설정 파일 |
+역할:
+- Splash에서 세션 복구 진행
+- Login 성공 시 token 저장 후 `/home` 이동
+- Signup 성공 후 로그인 화면으로 이동
 
-### 수정 파일
-| 파일 | 변경 내용 |
-|------|----------|
-| `pubspec.yaml` | `firebase_core`, `firebase_messaging` 의존성 추가 |
-| `lib/main.dart` | `Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)` 추가 |
-| `android/settings.gradle.kts` | `com.google.gms.google-services:4.4.4` apply false 추가 |
-| `android/app/build.gradle.kts` | `com.google.gms.google-services` plugin 적용 |
-| `android/app/src/main/AndroidManifest.xml` | `POST_NOTIFICATIONS` 권한 추가 |
+주의:
+- 로그인/회원가입 API에는 Authorization 헤더를 붙이지 않는다.
 
-### 검증 결과
-- Web: `Firebase initialized on Web` 콘솔 로그 확인
-- Android 에뮬레이터 FCM TOKEN 발급 확인
+---
+
+### 6.2 HomeScreen
+
+상태:
+- 구현 완료
+
+연결 API:
+- `GET /api/rooms`
+- `GET /api/points/me`
+- `GET /api/notifications/unread-count`
+
+구현 내용:
+- 내가 참여 중인 방 목록 조회
+- 보유 포인트 표시
+- 앱 설명 카드 표시
+- 방 카드에 예치금, 인증 방식, 목표 표시
+- 알림 벨 unread badge 표시
+- 알림함 복귀 후 unread count 재갱신
+- 방 카드 클릭 시 `/rooms/:roomId` 이동
+
+---
+
+### 6.3 CreateRoomScreen
+
+상태:
+- 구현 완료
+
+연결 API:
+- `POST /api/rooms`
+
+구현 내용:
+- 방 제목, 설명, 기간, 마감 시간, 예치금, 인원, 인증 방식 입력
+- DAILY: 30/60/90/120일 선택
+- WEEKLY: 28/56/84/112일 선택
+- WEEKLY 기간은 “4주(28일)” 형태로 표시
+- 예치금 안내 카드 표시
+- 인증 방식 안내 표시
+- 생성 성공 시 방 상세로 이동
+
+주의:
+- 백엔드에서 durationDays, stakePoint, WEEKLY requiredProofCount 검증을 수행한다.
+
+---
+
+### 6.4 JoinRoomScreen
+
+상태:
+- 구현 완료
+
+연결 API:
+- `GET /api/rooms/invite/{inviteLinkToken}`
+- `POST /api/rooms/{roomId}/join`
+
+구현 내용:
+- 초대 링크 또는 token 입력
+- 전체 URL을 붙여넣어도 token만 추출
+- 초대 미리보기 조회
+- inviteCode 입력 후 방 참여
+- 참여 안내 카드 표시
+- `/invite/:inviteLinkToken` 라우트로 직접 진입 가능
+
+---
+
+### 6.5 RoomDashboardScreen
+
+상태:
+- 구현 완료
+
+연결 API:
+- `GET /api/rooms/{roomId}`
+- `GET /api/rooms/{roomId}/members`
+- `GET /api/rooms/{roomId}/today-status`
+- `POST /api/rooms/{roomId}/stake`
+- `POST /api/rooms/{roomId}/start`
+- `POST /api/rooms/{roomId}/settle`
+- `GET /api/rooms/{roomId}/settlement`
+
+구현 내용:
+- 방 상태 배지 표시
+- 채팅 버튼 제공
+- 미션 요약 카드
+- 룰 안내 카드
+- IN_PROGRESS 상태에서 today-status 조회
+- 내 상태 카드
+- 멤버별 현황 일부 표시
+- 초대 코드/초대 링크 복사
+- 상태별 하단 액션 버튼 표시
+
+상태별 하단 액션:
+| 방 상태 | 버튼 |
+|---|---|
+| RECRUITING | 예치금 납부 |
+| READY + OWNER | 미션 시작 |
+| READY + MEMBER | 시작 대기 |
+| IN_PROGRESS | 인증 올리기 / 인증 확인하기 |
+| 정산 가능 시점 | 정산하기 / 인증 확인하기 |
+| SETTLED | 정산 결과 보기 |
+
+정산 가능 시점 계산:
+- 현재 날짜가 missionEndDate 이후면 가능
+- missionEndDate 당일이면 deadlineTime 이후 가능
+- 그 외에는 정산 버튼 숨김
+
+---
+
+### 6.6 SubmitProofScreen
+
+상태:
+- 구현 완료
+
+연결 API:
+- `POST /api/rooms/{roomId}/proofs`
+
+구현 내용:
+- content 입력
+- 이미지/동영상 파일 선택
+- content 또는 file 중 하나 이상 제출
+- Dio FormData multipart 전송
+- 409 에러 특화 메시지 표시
+- 제출만으로 완료가 아니고 멤버 확인이 필요하다는 안내 표시
+
+---
+
+### 6.7 ProofFeedScreen
+
+상태:
+- 구현 완료
+
+연결 API:
+- `GET /api/rooms/{roomId}/proofs`
+- `POST /api/proofs/{proofId}/confirm`
+
+구현 내용:
+- 인증 목록 조회
+- 파일 URL이 상대경로면 `ApiConstants.baseUrl`을 붙여 표시
+- 내 인증 여부 표시
+- 이미 확인한 인증 여부 표시
+- 확인 가능한 인증에만 확인 버튼 표시
+- 확인 성공 시 silent refresh
+- 빈 상태 / 로딩 / 에러 상태 처리
+
+---
+
+### 6.8 MemberStatusScreen
+
+상태:
+- 구현 완료
+
+연결 API:
+- `GET /api/rooms/{roomId}/members/stats`
+
+구현 내용:
+- 목표 달성 / 확인 대기 / 추가 필요 요약
+- 멤버별 제출 수, 확인 완료 수, 필요 수 표시
+- 진행률 바 표시
+- `progressStatus ?? expectedResult ?? status` 순서로 상태 읽기
+- CONFIRMED 기준으로 목표 달성 계산 안내
+
+---
+
+### 6.9 SettlementResultScreen
+
+상태:
+- 구현 완료
+
+연결 API:
+- `GET /api/rooms/{roomId}/settlement`
+
+구현 내용:
+- 정산 결과 조회
+- 멤버별 성공/실패 결과 표시
+- 제출 수, 확인 완료 수, 성공 기준, rewardPoint, proofRate 표시
+- 전원 성공/일부 성공/전원 실패 정책에 맞춘 결과 표시
+
+---
+
+### 6.10 NotificationScreen
+
+상태:
+- 구현 완료
+
+연결 API:
+- `GET /api/notifications`
+- `GET /api/notifications/unread-count`
+- `PUT /api/notifications/{id}/read`
+- `PUT /api/notifications/read-all`
+
+구현 내용:
+- 알림 목록 조회
+- 전체/읽은 알림 필터
+- 미읽음 알림 클릭 시 읽음 처리 후 이동
+- 읽음 처리 실패 시 rollback
+- 모두 읽음 처리
+- roomId가 있으면 방 상세 이동
+- roomId가 없으면 읽음 처리만 수행
+- 타입별 emoji 표시
+  - ROOM_STARTED
+  - PROOF_SUBMITTED
+  - PROOF_CONFIRMED
+  - ROOM_SETTLED
+
+---
+
+### 6.11 RoomChatScreen
+
+상태:
+- 구현 완료
+
+연결:
+- REST: `GET /api/rooms/{roomId}/messages`
+- STOMP endpoint: `/ws`
+- subscribe: `/topic/rooms/{roomId}/messages`
+- send: `/app/rooms/{roomId}/messages`
+
+구현 내용:
+1. 화면 진입 시 REST로 기존 메시지 조회
+2. 조회 성공 후 STOMP 연결 시작
+3. STOMP CONNECT에 Authorization Bearer token 포함
+4. 연결 완료 전 메시지 전송 차단
+5. 메시지 전송 시 로컬에 즉시 추가하지 않음
+6. 서버 broadcast 수신 후 메시지 리스트에 추가
+7. 화면 이탈 시 `disconnect()` 호출
+8. 연결 중 / 연결 끊김 상태 바 표시
+9. 내 메시지와 상대 메시지 말풍선 분리
+
+주의:
+- 실제 다중 클라이언트 STOMP 수신 테스트는 추가 확인 필요
+- 채팅은 방 멤버 권한을 백엔드에서 최종 검증한다
+
+---
+
+### 6.12 MyPageScreen
+
+상태:
+- 구현 완료
+
+역할:
+- 사용자 정보 표시
+- 로그아웃 진입점
+
+---
+
+## 7. 백엔드 응답과 맞춘 처리
+
+### Room id 필드 혼재
+
+백엔드 Room 응답에서 `id`와 `roomId`가 혼재한다.
+
+| API | 응답 DTO | id 필드 |
+|---|---|---|
+| `POST /api/rooms` | RoomDetailResponse | `id` |
+| `GET /api/rooms` | RoomSummaryResponse | `id` |
+| `GET /api/rooms/{roomId}` | RoomDetailEnrichedResponse | `roomId` |
+
+Flutter 모델 처리:
+```dart
+id: _readInt(json['roomId'] ?? json['id'])
+```
+
+정리:
+- 백엔드 필드를 대규모로 바꾸지 않고, Flutter model에서 안전하게 흡수한다.
+- `id`를 `roomId`로 일괄 변경하는 대규모 수정은 하지 않는다.
+
+---
+
+### Proof 파일 URL
+
+백엔드가 `/uploads/proofs/{fileName}` 형태의 상대경로를 반환한다.
+
+Flutter 처리:
+- 상대경로면 `ApiConstants.baseUrl`을 앞에 붙인다.
+- 이미 http로 시작하면 그대로 사용한다.
+
+---
+
+### Error Message
+
+`ApiClient.messageFromError()` 기준:
+- timeout은 별도 메시지
+- statusCode가 있으면 400/401/403/404/409/413/500 기준 메시지
+- 서버 응답이 없으면 연결 실패 메시지
+- Dio 내부 문자열이나 긴 개발자용 메시지를 사용자에게 그대로 노출하지 않도록 처리
+
+---
+
+## 8. 백엔드 연결 검증 현황
+
+완료:
+- 회원가입 / 로그인 / 로그아웃
+- 세션 복구
+- 보유 포인트 조회
+- 방 목록 조회
+- 방 생성 후 상세 이동
+- 방 참여
+- 예치금 납부
+- 방 시작
+- 인증 제출
+- 인증 피드 조회
+- 인증 확인
+- 멤버별 현황 조회
+- 정산 결과 조회
+- 알림 목록 조회
+- 알림 읽음 처리
+- 모두 읽음 처리
+- 홈 unread badge 갱신
+- Android 에뮬레이터 ROOM_STARTED FCM 수신
+- device token 등록/비활성화
+- RoomChatScreen 코드 연결
+
+현재 알려진 오류:
+- 기존 TypeError는 해결 완료
+- 사용자 친화적 에러 메시지 처리 완료
+
+추가 확인 필요:
+- STOMP 다중 클라이언트 실시간 송수신
+- FCM foreground/background 수신 처리
+- push 클릭 시 이동
+- ActivityFeedScreen
+- MissionProgressBoard
+- SettlementShareCardScreen
+
+---
+
+## 9. Firebase / FCM 프론트 상태
+
+초기 설정 완료:
+- Firebase CLI 로그인
+- FlutterFire CLI 설치
+- `flutterfire configure`
+- `lib/firebase_options.dart` 생성
+- `android/app/google-services.json` 추가
+- Android/Web 초기화 확인
+- Android 에뮬레이터 FCM token 발급 확인
 - FCM 권한 `AuthorizationStatus.authorized` 확인
 
----
+수정 파일:
+- `pubspec.yaml`
+- `lib/main.dart`
+- `android/settings.gradle.kts`
+- `android/app/build.gradle.kts`
+- `android/app/src/main/AndroidManifest.xml`
 
-## 12. 18-4단계 Flutter DeviceToken API 연결 완료
+DeviceToken 연결:
+- 로그인 성공 후 `POST /api/device-tokens`
+- 로그아웃 시 `DELETE /api/device-tokens`
+- 세션 복구 성공 후 재등록
+- Web은 스킵
+- Android/iOS만 등록
 
-### 구현 위치
-- `device_token_service.dart` 미존재 — FCM device token 기능이 `auth_service.dart`에 직접 구현됨
+검증:
+- 로그인 후 `device_tokens.active=1`
+- 로그아웃 후 `active=0`
+- 재로그인 후 `active=1`
 
-### 로그인 흐름
-1. `tokenStorage.saveAccessToken()` — accessToken 먼저 저장 (device-tokens API는 인증 필요)
-2. `registerCurrentDeviceTokenSafely()` 호출
-   - kIsWeb → 스킵
-   - `_currentPlatform()` null (Android/iOS 외) → 스킵
-   - `FirebaseMessaging.instance.requestPermission()` 권한 요청
-   - `FirebaseMessaging.instance.getToken()` 토큰 발급
-   - `POST /api/device-tokens` 호출 (`token`, `platform` 전달)
-   - 실패해도 예외 밖으로 던지지 않음 (로그인 차단 방지)
-
-### 로그아웃 흐름
-1. `deactivateCurrentDeviceTokenSafely()` — `DELETE /api/device-tokens` 호출 (active=false)
-2. `tokenStorage.clearAccessToken()` — 로컬 토큰 삭제
-   - FCM 비활성화 실패해도 로그아웃 계속 진행
-
-### 세션 복구 (앱 재진입)
-- `auth_controller.dart restoreSession()`: getMe() 성공 후 `registerCurrentDeviceTokenSafely()` 호출
-- 앱 재진입 시에도 device token 서버 동기화
-
-### 후속 보강 (미완료)
-- `FirebaseMessaging.instance.onTokenRefresh` 핸들러 미구현 → 토큰 갱신 시 자동 재등록 안 됨, 다음 로그인에 반영됨
-- `device_token_service.dart` 별도 파일 분리 미완료 — 현재는 `auth_service.dart`에 직접 구현
-
-### 검증 결과
-- 로그인 후 device_tokens.active=1 저장 확인
-- 로그아웃 후 active=0 확인
-- 재로그인 후 active=1 재활성화 확인
+남은 점:
+- `FirebaseMessaging.instance.onTokenRefresh` 미구현
+- device token 관련 로직이 아직 `auth_service.dart` 안에 있음
 
 ---
 
-## 13. 2차 프론트 계획
+## 10. 구현 순서 기준 진행 기록
 
-2차 프론트 기능 후보:
+### 1단계 — 기본 앱 구조
+- Flutter 프로젝트 구성
+- Riverpod Provider 구조 도입
+- GoRouter 라우팅 구성
+- AppContainer 적용
+- Splash/Login/Signup/Home 기본 흐름 구성
 
-1. ✅ NotificationScreen (19단계 완료)
-   - 알림 목록 조회 / 읽음 처리 / 미확인 배지
-   - 홈 화면 알림 아이콘 연결
-   - roomId 있으면 방 상세 이동
+### 2단계 — 백엔드 API 연결
+- Dio 기반 ApiClient 구현
+- SharedPreferences token 저장
+- Authorization 자동 첨부
+- baseUrl 실행 환경 분기
+- 로그인/회원가입 공개 API 처리
 
-2. ActivityFeedScreen
-   - 방 활동 피드 표시
-   - 방 참여, 예치, 시작, 인증 제출, 인증 확인, 정산 완료 이벤트
+### 3단계 — 방 기능 연결
+- 방 목록 조회
+- 방 생성
+- 초대 링크/토큰 참여
+- 방 상세 진입
+- Room model null-safe 처리
+- `id` / `roomId` 혼재 대응
 
-3. FCM foreground/background 처리 및 push 클릭 이동
-   - 앱 포그라운드 수신 처리
-   - 백그라운드 / 종료 상태 수신 처리
-   - 푸시 클릭 시 방 상세 또는 알림함 이동
+### 4단계 — 예치와 미션 진행 화면
+- RoomDashboardScreen 구성
+- 예치금 납부
+- 방 시작
+- 미션 요약 카드
+- 현재 인증 현황 카드
+- 멤버별 현황 미리보기
+- 정산 가능 시점 계산
 
-4. RoomChatScreen
-   - WebSocket/STOMP 연결
-   - 메시지 실시간 수신
-   - 이전 메시지 조회
-   - 메시지 전송
+### 5단계 — 인증 제출과 확인
+- image_picker 연결
+- Dio FormData multipart 업로드
+- SubmitProofScreen
+- ProofFeedScreen
+- 인증 확인 버튼
+- 파일 URL 상대경로 처리
 
+### 6단계 — 멤버 현황과 정산 결과
+- MemberStatusScreen
+- SettlementResultScreen
+- 성공/실패/보상 결과 표시
+- 확인 완료 기준 안내 문구 정리
+
+### 7단계 — 알림
+- notification_model
+- notification_service
+- NotificationScreen
+- 홈 unread badge
+- 읽음 처리와 낙관적 업데이트
+- roomId 기반 이동
+
+### 8단계 — Firebase / FCM
+- Firebase 초기화
+- FCM token 발급
+- 로그인 후 device token 등록
+- 로그아웃 후 device token 비활성화
+- 세션 복구 후 재등록
+
+### 9단계 — 채팅
+- ChatService
+- ChatMessageModel
+- RoomChatScreen
+- REST 기존 메시지 조회
+- STOMP 연결
+- 메시지 전송/수신
+- 연결 상태 표시
+- 화면 이탈 시 disconnect
+
+---
+
+## 11. 다음 작업
+
+우선순위:
+
+1. RoomChatScreen 실기기 또는 Web 2개 클라이언트 송수신 확인
+2. ActivityFeedScreen 구현
+3. FCM foreground/background 처리
+4. push 클릭 이동
 5. MissionProgressBoard
-   - 현재 파란 요약 카드를 방 전체 대시보드로 확장
-   - 전체 진행률, 목표 완료/확인 대기/제출 필요 인원 표시
-
 6. SettlementShareCardScreen
-   - 개인/그룹 정산 결과 카드 UI
-   - 추후 이미지 저장/공유 확장
+
+---
+
+## 12. 작업 시 주의사항
+
+- 백엔드 API를 무작정 바꾸지 않는다.
+- 백엔드 응답 필드를 바꾸기보다 Flutter model에서 흡수 가능한지 먼저 확인한다.
+- `id`를 `roomId`로 일괄 변경하는 대규모 수정 금지.
+- 코드 수정 전 변경 파일과 수정 내용을 먼저 제시한다.
+- 기존 route를 변경하면 백엔드 알림 이동, 초대 링크, 화면 이동 흐름이 깨질 수 있다.
+- FCM 실패가 로그인 실패로 이어지지 않도록 현재 구조를 유지한다.
+- ChatService는 화면 dispose 시 반드시 disconnect해야 한다.
+- 문서 수정 작업에서는 Flutter/Dart 코드를 함께 수정하지 않는다.
